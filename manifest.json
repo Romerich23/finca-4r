@@ -1,0 +1,25 @@
+{
+  "name": "SIGGA - Sistema de Gestión Ganadera",
+  "short_name": "SIGGA",
+  "description": "Sistema de control ganadero multiusuario: animales, gastos y reportes por finca.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#145A32",
+  "theme_color": "#145A32",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

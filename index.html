@@ -1,0 +1,2183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIGGA - Sistema de Gestión Ganadera</title>
+
+    <!-- ================= CONFIGURACIÓN PWA (App Instalable) ================= -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#145A32">
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+    <link rel="apple-touch-icon" href="./icon-192.png">
+    <!-- Soporte para "Agregar a pantalla de inicio" en iPhone/iPad -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SIGGA">
+    <!-- ======================================================================= -->
+    <!-- Bootstrap 5 CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Open+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #1b4d3e;
+            --primary-dark: #12352b;
+            --primary-light: #2c6e5a;
+            --accent-color: #b8752f;
+            --bg-light: #f8f9fa;
+            --sidebar-width: 260px;
+            --focus-ring: #ffb703;
+        }
+
+        html {
+            font-size: 100%; /* respeta el 100% = 16px del navegador para permitir zoom hasta 200% */
+        }
+
+        body {
+            font-family: 'Open Sans', sans-serif;
+            background-color: #f4f6f8;
+            color: #262626;
+            overflow-x: hidden;
+            line-height: 1.6;
+            font-size: 1rem;
+        }
+
+        h1, h2, h3, h4, h5, h6, .brand-font {
+            font-family: 'Montserrat', sans-serif;
+            line-height: 1.3;
+        }
+
+        p, li, label, span, small, td, th {
+            line-height: 1.55;
+        }
+
+        /* ============ ACCESIBILIDAD: FOCO VISIBLE ============ */
+        a:focus-visible,
+        button:focus-visible,
+        input:focus-visible,
+        select:focus-visible,
+        textarea:focus-visible,
+        .nav-link:focus-visible,
+        [tabindex]:focus-visible {
+            outline: 3px solid var(--focus-ring) !important;
+            outline-offset: 2px !important;
+            box-shadow: none !important;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 0.2rem rgba(27, 77, 62, 0.25);
+        }
+
+        /* Utilidad para ocultar visualmente pero mantener accesible a lectores de pantalla */
+        .visually-hidden-focusable:not(:focus):not(:focus-within) {
+            position: absolute !important;
+            width: 1px; height: 1px;
+            padding: 0; margin: -1px;
+            overflow: hidden;
+            clip: rect(0,0,0,0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        /* ============ TRANSICIONES SUAVES GLOBALES ============ */
+        a, button, .btn, .nav-link, .card, input, select, textarea, .form-control, .form-select, img {
+            transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease,
+                        border-color 0.18s ease, color 0.18s ease, opacity 0.18s ease;
+        }
+
+        /* ============ MICRO-INTERACCIÓN: "VIBRACIÓN" AL HACER CLIC ============ */
+        @keyframes clickShake {
+            0%   { transform: translate(0, 0) scale(1); }
+            20%  { transform: translate(-2px, 1px) scale(0.99); }
+            40%  { transform: translate(2px, -1px) scale(0.99); }
+            60%  { transform: translate(-1px, 1px) scale(1); }
+            80%  { transform: translate(1px, -1px) scale(1); }
+            100% { transform: translate(0, 0) scale(1); }
+        }
+        .click-shake {
+            animation: clickShake 0.35s ease;
+        }
+
+        /* ============ MICRO-INTERACCIÓN: BRILLO (SHINE) EN BOTONES ============ */
+        .btn {
+            position: relative;
+            overflow: hidden;
+            isolation: isolate;
+        }
+        .btn::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -75%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(120deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 100%);
+            transform: skewX(-20deg);
+            z-index: 1;
+            pointer-events: none;
+        }
+        .btn:hover::after {
+            animation: btnShine 0.75s ease;
+        }
+        @keyframes btnShine {
+            0%   { left: -75%; }
+            100% { left: 125%; }
+        }
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        /* Logo circular adaptable (finca / SIGGA) */
+        .sidebar-logo-shape {
+            width: 46px;
+            height: 46px;
+            object-fit: cover;
+            border: 2px solid rgba(255,255,255,0.6);
+            flex-shrink: 0;
+        }
+        .sidebar-brand {
+            font-size: 1.15rem;
+            letter-spacing: 0.5px;
+        }
+        .logo-shape-preview {
+            width: 90px;
+            height: 90px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 2px solid #ddd;
+        }
+
+
+        /* Sidebar Styling */
+        #sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background: linear-gradient(180deg, var(--primary-dark) 0%, var(--primary-color) 100%);
+            color: white;
+            transition: all 0.3s ease-in-out;
+            z-index: 1050;
+            box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+        }
+
+        #sidebar .sidebar-header {
+            padding: 20px 15px;
+            background: rgba(0,0,0,0.15);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        #sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.85);
+            padding: 12px 20px;
+            font-weight: 500;
+            border-left: 4px solid transparent;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        #sidebar .nav-link:hover, #sidebar .nav-link.active {
+            color: white;
+            background: rgba(255, 255, 255, 0.12);
+            border-left-color: var(--accent-color);
+        }
+
+        #sidebar .nav-link i {
+            width: 20px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        /* Main Content */
+        #content {
+            margin-left: var(--sidebar-width);
+            padding: 25px;
+            min-height: 100vh;
+            transition: all 0.3s ease-in-out;
+        }
+
+        /* Mobile Backdrop */
+        #sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.5);
+            z-index: 1040;
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 991.98px) {
+            #sidebar {
+                left: calc(-1 * var(--sidebar-width));
+            }
+            #sidebar.show {
+                left: 0;
+            }
+            #content {
+                margin-left: 0 !important;
+                padding: 15px !important;
+            }
+            #sidebar-overlay.show {
+                display: block;
+            }
+        }
+
+        /* Cards & KPI */
+        .kpi-card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+            background: white;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+        }
+
+        .kpi-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            flex-shrink: 0;
+        }
+
+        /* Custom Table Styling */
+        .table-custom {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .table-custom thead {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .table-custom th {
+            padding: 14px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            border: none;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        .table-custom td {
+            padding: 12px 14px;
+            vertical-align: middle;
+            border-color: #f1f1f1;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+
+        .animal-img-thumb {
+            width: 48px;
+            height: 48px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .animal-img-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        /* Badges & Buttons */
+        .badge-breed {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 20px;
+        }
+
+        .btn-primary-3r {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+            font-weight: 600;
+            padding: 8px 18px;
+            border-radius: 8px;
+        }
+
+        .btn-primary-3r:hover {
+            background-color: var(--primary-dark);
+            border-color: var(--primary-dark);
+            color: white;
+        }
+
+        /* ================= AUTENTICACIÓN (Login / Registro) ================= */
+        #authScreen {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-color) 100%);
+            padding: 20px;
+        }
+        #authScreen .auth-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+            width: 100%;
+            max-width: 420px;
+            padding: 35px 30px;
+        }
+        #authScreen .auth-logo {
+            width: 70px;
+            height: 70px;
+            object-fit: contain;
+            display: block;
+            margin: 0 auto 10px;
+        }
+        .password-wrapper { position: relative; }
+        .password-wrapper .toggle-eye {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #888;
+        }
+        #pendingBanner {
+            display: none;
+        }
+        #adminPanelSection .pending-user-card {
+            border-left: 4px solid var(--accent-color);
+        }
+        #fincaSwitcher {
+            max-width: 220px;
+        }
+
+        /* Print Style */
+        @media print {
+            #sidebar, #sidebar-overlay, .no-print, .btn-toggle-sidebar {
+                display: none !important;
+            }
+            #content {
+                margin-left: 0 !important;
+                padding: 0 !important;
+            }
+            .card {
+                border: 1px solid #ccc !important;
+                box-shadow: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ================= PANTALLA DE AUTENTICACIÓN ================= -->
+    <main id="authScreen">
+        <div class="auth-card">
+            <img src="icon-192.png" class="auth-logo" alt="Logotipo de SIGGA">
+            <h1 class="text-center fw-bold mb-0 fs-3" style="color:var(--primary-color);">SIGGA</h1>
+            <p class="text-center text-muted small mb-4">Sistema de Gestión Ganadero</p>
+
+            <!-- LOGIN FORM -->
+            <section id="loginForm" aria-labelledby="loginHeading">
+                <h2 id="loginHeading" class="visually-hidden">Iniciar sesión</h2>
+                <div id="pendingBanner" class="alert alert-warning small" role="alert"></div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small" for="login-email">Correo electrónico</label>
+                    <input type="email" id="login-email" class="form-control" placeholder="tu@correo.com" autocomplete="username">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small" for="login-password">Contraseña</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="login-password" class="form-control" placeholder="••••••••" autocomplete="current-password">
+                        <i class="fa-solid fa-eye toggle-eye" onclick="togglePasswordField('login-password', this)" role="button" tabindex="0" aria-label="Mostrar u ocultar contraseña" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();togglePasswordField('login-password', this);}"></i>
+                    </div>
+                </div>
+                <div id="login-error" class="text-danger small mb-2" role="alert"></div>
+                <button class="btn btn-primary-3r w-100" onclick="attemptLogin()">Iniciar Sesión</button>
+                <div class="text-center mt-3">
+                    <small class="text-muted">¿No tienes cuenta? <a href="#" onclick="showAuthView('register')">Regístrate aquí</a></small>
+                </div>
+            </section>
+
+            <!-- REGISTER FORM -->
+            <section id="registerForm" class="d-none" aria-labelledby="registerHeading">
+                <h2 id="registerHeading" class="visually-hidden">Crear cuenta</h2>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small" for="reg-name">Nombre completo</label>
+                    <input type="text" id="reg-name" class="form-control" placeholder="Tu nombre" autocomplete="name">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small" for="reg-email">Correo electrónico</label>
+                    <input type="email" id="reg-email" class="form-control" placeholder="tu@correo.com" autocomplete="username">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small" for="reg-password">Contraseña</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="reg-password" class="form-control" placeholder="••••••••" autocomplete="new-password">
+                        <i class="fa-solid fa-eye toggle-eye" onclick="togglePasswordField('reg-password', this)" role="button" tabindex="0" aria-label="Mostrar u ocultar contraseña" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();togglePasswordField('reg-password', this);}"></i>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small" for="reg-finca">Nombre de tu finca</label>
+                    <input type="text" id="reg-finca" class="form-control" placeholder="Ej. Mi Finca">
+                </div>
+                <div class="mb-3 text-center">
+                    <label class="form-label fw-bold small d-block" for="reg-finca-logo">Logotipo de tu finca (opcional)</label>
+                    <img id="reg-finca-logo-preview" src="" alt="Vista previa del logotipo de tu finca" class="logo-shape-preview d-none mb-2">
+                    <input type="file" id="reg-finca-logo" class="form-control" accept="image/*" onchange="previewRegFincaLogo(event)">
+                </div>
+                <div id="register-error" class="text-danger small mb-2" role="alert"></div>
+                <button class="btn btn-primary-3r w-100" onclick="attemptRegister()">Crear Cuenta</button>
+                <div class="text-center mt-3">
+                    <small class="text-muted">¿Ya tienes cuenta? <a href="#" onclick="showAuthView('login')">Inicia sesión</a></small>
+                </div>
+            </section>
+        </div>
+    </main>
+
+
+    <!-- ================= APP PRINCIPAL (oculta hasta iniciar sesión) ================= -->
+    <div id="appContainer" class="d-none">
+
+    <!-- SIDEBAR OVERLAY FOR MOBILE -->
+    <div id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- SIDEBAR NAVIGATION -->
+    <nav id="sidebar" aria-label="Navegación principal">
+        <div class="sidebar-header d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-3">
+                <img id="sidebarLogo" src="icon-192.png" alt="Logotipo de la finca activa" class="img-fluid bg-white p-1 rounded-circle sidebar-logo-shape">
+                <div>
+                    <p class="m-0 fw-bold text-white sidebar-brand" id="sidebarBrandName">SIGGA</p>
+                    <small class="text-white-50 d-block">Sistema de Gestión Ganadero</small>
+                    <small class="text-white-50 d-block fw-semibold" id="sidebarFincaName">Cargando finca...</small>
+                </div>
+            </div>
+            <button class="btn btn-sm text-white d-lg-none" onclick="toggleSidebar()" aria-label="Cerrar menú">
+                <i class="fa-solid fa-xmark fs-5" aria-hidden="true"></i>
+            </button>
+        </div>
+
+        <div class="px-3 pt-3">
+            <label class="text-white-50 small fw-bold mb-1 d-block" for="fincaSwitcher">Finca activa</label>
+            <select id="fincaSwitcher" class="form-select form-select-sm mb-2" onchange="selectFinca(this.value)" aria-label="Seleccionar finca activa"></select>
+            <div class="d-flex gap-2 mb-2">
+                <button class="btn btn-sm btn-outline-light flex-fill" onclick="openFincaModal('edit')" aria-label="Editar finca activa"><i class="fa-solid fa-pen" aria-hidden="true"></i> <span class="d-none d-xl-inline">Editar</span></button>
+                <button class="btn btn-sm btn-outline-light flex-fill" onclick="openFincaModal('new')" aria-label="Crear nueva finca"><i class="fa-solid fa-plus" aria-hidden="true"></i> <span class="d-none d-xl-inline">Nueva</span></button>
+                <button class="btn btn-sm btn-outline-danger flex-fill" onclick="deleteCurrentFinca()" aria-label="Eliminar finca activa"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+            </div>
+        </div>
+
+        <div class="py-2">
+            <a href="#" class="nav-link active" onclick="switchTab('dashboard')">
+                <i class="fa-solid fa-chart-line" aria-hidden="true"></i>
+                <span>Resumen General</span>
+            </a>
+            <a href="#" class="nav-link" onclick="switchTab('animals')">
+                <i class="fa-solid fa-cow" aria-hidden="true"></i>
+                <span>Control de Animales</span>
+            </a>
+            <a href="#" class="nav-link" onclick="switchTab('expenses')">
+                <i class="fa-solid fa-receipt" aria-hidden="true"></i>
+                <span>Gastos y Consumibles</span>
+            </a>
+            <a href="#" class="nav-link" onclick="switchTab('reports')">
+                <i class="fa-solid fa-file-invoice-dollar" aria-hidden="true"></i>
+                <span>Informes y Reportes</span>
+            </a>
+            <a href="#" class="nav-link d-none" id="adminNavLink" onclick="switchTab('admin')">
+                <i class="fa-solid fa-user-shield" aria-hidden="true"></i>
+                <span>Administración</span>
+                <span id="pendingCountBadge" class="badge bg-danger ms-auto d-none">0</span>
+            </a>
+        </div>
+
+        <footer class="position-absolute bottom-0 p-3 w-100 border-top border-secondary">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <small class="text-white-50 text-truncate" id="sidebarUserName">Usuario</small>
+                <button class="btn btn-sm btn-outline-light" onclick="logoutUser()" aria-label="Cerrar sesión"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i></button>
+            </div>
+            <small class="text-white-50 d-block text-center"><i class="fa-solid fa-shield-cat me-1" aria-hidden="true"></i> SIGGA &copy; 2026</small>
+        </footer>
+    </nav>
+
+    <!-- MAIN CONTENT AREA -->
+
+    <div id="content">
+        <!-- TOP NAVBAR / HEADER -->
+        <header class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom gap-2 no-print">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-primary-3r btn-toggle-sidebar d-lg-none" onclick="toggleSidebar()" aria-label="Abrir menú de navegación" aria-controls="sidebar">
+                    <i class="fa-solid fa-bars" aria-hidden="true"></i>
+                </button>
+                <div>
+                    <h1 class="fw-bold m-0 text-dark fs-4 fs-md-3" id="page-title">Resumen General</h1>
+                    <small class="text-muted d-none d-sm-block">Gestión de Inversión, Inventarios y Consumibles Ganaderos</small>
+                </div>
+            </div>
+            <div class="d-flex gap-2 ms-auto">
+                <button class="btn btn-outline-success btn-sm btn-md-md" onclick="exportDataJSON()"><i class="fa-solid fa-download me-1" aria-hidden="true"></i> <span class="d-none d-sm-inline">Respaldo</span></button>
+                <button class="btn btn-outline-primary btn-sm btn-md-md" onclick="printPage()"><i class="fa-solid fa-print me-1" aria-hidden="true"></i> <span class="d-none d-sm-inline">Imprimir</span></button>
+            </div>
+        </header>
+
+        <main id="mainContent">
+        <!-- TAB 1: RESUMEN GENERAL (DASHBOARD) -->
+        <div id="tab-dashboard" class="tab-content">
+            <!-- KPI CARDS -->
+            <div class="row g-3 mb-4">
+                <div class="col-12 col-sm-6 col-xl-3">
+                    <div class="card kpi-card p-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="kpi-icon bg-success bg-opacity-10 text-success">
+                                <i class="fa-solid fa-cow"></i>
+                            </div>
+                            <div>
+                                <small class="text-muted d-block fw-semibold">Total Animales</small>
+                                <p class="fw-bold m-0 fs-4" id="kpi-total-animals">0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-6 col-xl-3">
+                    <div class="card kpi-card p-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="kpi-icon bg-primary bg-opacity-10 text-primary">
+                                <i class="fa-solid fa-scale-balanced"></i>
+                            </div>
+                            <div>
+                                <small class="text-muted d-block fw-semibold">Peso Promedio</small>
+                                <p class="fw-bold m-0 fs-4" id="kpi-avg-weight">0 kg</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-6 col-xl-3">
+                    <div class="card kpi-card p-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="kpi-icon bg-warning bg-opacity-10 text-warning">
+                                <i class="fa-solid fa-sack-dollar"></i>
+                            </div>
+                            <div>
+                                <small class="text-muted d-block fw-semibold">Inversión Animales</small>
+                                <p class="fw-bold m-0 fs-4" id="kpi-total-animals-cost">₡0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-6 col-xl-3">
+                    <div class="card kpi-card p-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="kpi-icon bg-danger bg-opacity-10 text-danger">
+                                <i class="fa-solid fa-hand-holding-dollar"></i>
+                            </div>
+                            <div>
+                                <small class="text-muted d-block fw-semibold">Costo Total Acumulado</small>
+                                <p class="fw-bold m-0 fs-4 text-success" id="kpi-total-overall-cost">₡0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FINANCIAL SUMMARY TABLES & CHARTS -->
+            <div class="row g-4 mb-4">
+                <div class="col-12 col-lg-7">
+                    <div class="card border-0 shadow-sm p-3 p-md-4 h-100">
+                        <h2 class="fw-bold mb-3 text-dark fs-6 fs-md-5"><i class="fa-solid fa-calculator me-2 text-success" aria-hidden="true"></i>Desglose de Costos e Inversión</h2>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Concepto Financiero</th>
+                                        <th class="text-end">Monto Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><i class="fa-solid fa-cart-shopping me-2 text-muted"></i>Inversión Inicial en Compra de Animales</td>
+                                        <td class="text-end fw-bold" id="dash-purchase-cost">₡0</td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="fa-solid fa-truck-ramp-box me-2 text-muted"></i>Transporte Inicial de Compra</td>
+                                        <td class="text-end fw-bold" id="dash-transport-cost">₡0</td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="fa-solid fa-wheat-awn me-2 text-muted"></i>Total Gastos en Alimento</td>
+                                        <td class="text-end fw-bold" id="dash-food-cost">₡0</td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="fa-solid fa-syringe me-2 text-muted"></i>Total Gastos en Inyecciones / Salud</td>
+                                        <td class="text-end fw-bold" id="dash-health-cost">₡0</td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="fa-solid fa-cubes-stacked me-2 text-muted"></i>Total Gastos en Sal / Suplementos</td>
+                                        <td class="text-end fw-bold" id="dash-salt-cost">₡0</td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="fa-solid fa-receipt me-2 text-muted"></i>Otros Gastos Operativos</td>
+                                        <td class="text-end fw-bold" id="dash-other-cost">₡0</td>
+                                    </tr>
+                                </tbody>
+                                <tfoot class="table-success border-top">
+                                    <tr class="fw-bold fs-6">
+                                        <td id="dash-grand-total-label">COSTO TOTAL ACUMULADO</td>
+                                        <td class="text-end text-success" id="dash-grand-total">₡0</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-5">
+                    <div class="card border-0 shadow-sm p-3 p-md-4 h-100">
+                        <h2 class="fw-bold mb-3 text-dark fs-6 fs-md-5"><i class="fa-solid fa-chart-pie me-2 text-success" aria-hidden="true"></i>Distribución de Gastos</h2>
+                        <div class="d-flex align-items-center justify-content-center" style="min-height: 250px; height: 100%;">
+                            <canvas id="expensesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: CONTROL DE ANIMALES -->
+        <div id="tab-animals" class="tab-content d-none">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-3 mb-3 no-print">
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                    <input type="text" id="search-animal" class="form-control" placeholder="Buscar por Arete/ID, Nombre, Raza o Procedencia..." onkeyup="renderAnimalsTable()">
+                </div>
+                <button class="btn btn-primary-3r text-nowrap" onclick="openAnimalModal()"><i class="fa-solid fa-plus me-1"></i> Registrar Animal</button>
+            </div>
+
+            <div class="table-custom">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle" id="table-animals">
+                        <thead>
+                            <tr>
+                                <th>Foto</th>
+                                <th>Origen</th>
+                                <th>Fecha</th>
+                                <th>ID / Arete</th>
+                                <th>Nombre</th>
+                                <th>Raza</th>
+                                <th>Procedencia</th>
+                                <th>Peso (kg)</th>
+                                <th>Precio/kg</th>
+                                <th>Precio Pagado</th>
+                                <th>Transporte</th>
+                                <th>Inversión Inicial</th>
+                                <th>Gastos Salud/Ind.</th>
+                                <th>TOTAL ACUMULADO</th>
+                                <th class="no-print">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="animals-tbody">
+                            <!-- Populated via JS -->
+                        </tbody>
+                        <tfoot class="table-light border-top fw-bold" id="animals-tfoot">
+                            <!-- Totals populated via JS -->
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: GASTOS Y CONSUMIBLES -->
+        <div id="tab-expenses" class="tab-content d-none">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-3 mb-3 no-print">
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                    <input type="text" id="search-expense" class="form-control" placeholder="Buscar gasto por detalle, categoría o ID..." onkeyup="renderExpensesTable()">
+                </div>
+                <button class="btn btn-primary-3r text-nowrap" onclick="openExpenseModal()"><i class="fa-solid fa-plus me-1"></i> Registrar Gasto</button>
+            </div>
+
+            <div class="table-custom">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Aplica a</th>
+                                <th>Categoría</th>
+                                <th>Detalle / Producto</th>
+                                <th class="text-center">Cantidad</th>
+                                <th class="text-end">Costo Unitario</th>
+                                <th class="text-end">TOTAL GASTO</th>
+                                <th class="no-print text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expenses-tbody">
+                            <!-- Populated via JS -->
+                        </tbody>
+                        <tfoot class="table-light border-top fw-bold" id="expenses-tfoot">
+                            <!-- Totals populated via JS -->
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: INFORMES Y REPORTES -->
+        <div id="tab-reports" class="tab-content d-none">
+            <div class="card border-0 shadow-sm p-3 p-md-4 mb-4">
+                <h2 class="fw-bold mb-2 fs-5 fs-md-4"><i class="fa-solid fa-file-invoice me-2 text-success" aria-hidden="true"></i>Generador de Reporte Consolidado</h2>
+                <p class="text-muted small mb-3">Este módulo genera un informe profesional estructurado para imprimir o exportar en PDF con el balance general de la finca.</p>
+                <hr>
+                
+                <div id="report-printable-area" class="p-3 bg-white border rounded">
+                    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center border-bottom pb-3 mb-3 gap-2">
+                        <div>
+                            <h2 class="fw-bold text-success m-0 fs-4" id="report-finca-title">INFORME GANADERO</h2>
+                            <small class="text-muted">Reporte de Estado Financiero y Físico del Hato</small>
+                        </div>
+                        <div>
+                            <span class="badge bg-success p-2 fs-6">Generado: <span id="report-date"></span></span>
+                        </div>
+                    </div>
+
+                    <div class="row g-4 mb-4">
+                        <div class="col-12 col-md-6">
+                            <h3 class="fw-bold text-dark border-bottom pb-2 fs-6">Resumen Ejecutivo</h3>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between align-items-center"><span>Total de Cabezas:</span> <strong id="rep-total-head">0</strong></li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center"><span>Peso Total Comprado:</span> <strong id="rep-total-weight">0 kg</strong></li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center"><span>Inversión Compra Animales:</span> <strong id="rep-purchase-inv">₡0</strong></li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center"><span>Total Gastos Consumibles:</span> <strong id="rep-consumables-inv">₡0</strong></li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center text-success fs-6 fw-bold"><span>INVERSIÓN TOTAL ACUMULADA:</span> <strong id="rep-total-inv">₡0</strong></li>
+                            </ul>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <h3 class="fw-bold text-dark border-bottom pb-2 fs-6">Indicadores Clave de Desempeño</h3>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between align-items-center"><span>Costo Promedio Compra/Animal:</span> <strong id="rep-avg-cost-animal">₡0</strong></li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center"><span>Precio Promedio Pagado/kg:</span> <strong id="rep-avg-price-kg">₡0</strong></li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center"><span>Gasto Promedio Consumibles/Animal:</span> <strong id="rep-avg-expense-animal">₡0</strong></li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center"><span>Costo Final Promedio Total/Animal:</span> <strong id="rep-final-avg-animal">₡0</strong></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <h3 class="fw-bold text-dark border-bottom pb-2 mb-3 fs-6">Detalle Individual de Animales en Finca</h3>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm text-center align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID / Arete</th>
+                                    <th>Nombre</th>
+                                    <th>Raza</th>
+                                    <th>Peso (kg)</th>
+                                    <th>Inversión Inicial</th>
+                                    <th>Gastos Directos</th>
+                                    <th>Costo Total Final</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rep-animals-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="mt-3 text-end no-print">
+                    <button class="btn btn-success" onclick="window.print()"><i class="fa-solid fa-file-pdf me-1"></i> Imprimir / Guardar en PDF</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 5: ADMINISTRACIÓN (solo admin) -->
+        <div id="tab-admin" class="tab-content d-none">
+            <section id="adminPanelSection" class="card border-0 shadow-sm p-3 p-md-4 mb-4" aria-labelledby="pendingHeading">
+                <h2 id="pendingHeading" class="fw-bold mb-3 fs-5 fs-md-4"><i class="fa-solid fa-user-clock me-2 text-success" aria-hidden="true"></i>Solicitudes de Registro Pendientes</h2>
+                <div id="pendingUsersList">
+                    <!-- Populated via JS -->
+                </div>
+            </section>
+
+            <section id="allUsersSection" class="card border-0 shadow-sm p-3 p-md-4" aria-labelledby="usersHeading">
+                <h2 id="usersHeading" class="fw-bold mb-3 fs-5 fs-md-4"><i class="fa-solid fa-users me-2 text-success" aria-hidden="true"></i>Usuarios Registrados</h2>
+                <div id="allUsersList">
+                    <!-- Populated via JS -->
+                </div>
+            </section>
+        </div>
+        </main>
+    </div>
+
+    <!-- MODAL: ANIMAL -->
+    <div class="modal fade" id="animalModal" tabindex="-1" aria-labelledby="animalModalTitle">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h2 class="modal-title fw-bold fs-5" id="animalModalTitle">Registrar Animal</h2>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="animalForm">
+                        <input type="hidden" id="an-index">
+                        <div class="row g-3">
+                            <div class="col-12 col-sm-6 col-md-4">
+                                <label class="form-label fw-bold" for="an-id">Identificación / Arete</label>
+                                <input type="text" id="an-id" class="form-control" required placeholder="Ej. 371">
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-4">
+                                <label class="form-label fw-bold" for="an-name">Nombre / Alias</label>
+                                <input type="text" id="an-name" class="form-control" required placeholder="Ej. Pardo">
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-4">
+                                <label class="form-label fw-bold" for="an-record-type">Origen del Registro</label>
+                                <select id="an-record-type" class="form-select" onchange="updateAnimalDateLabel()">
+                                    <option value="Compra">Compra</option>
+                                    <option value="Nacido">Nacido en la finca</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label fw-bold" id="an-date-label" for="an-date">Fecha de Compra</label>
+                                <input type="date" id="an-date" class="form-control" required>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label fw-bold" for="an-breed">Raza</label>
+                                <select id="an-breed" class="form-select">
+                                    <option value="Brahman">Brahman</option>
+                                    <option value="Nelore">Nelore</option>
+                                    <option value="Hereford">Hereford</option>
+                                    <option value="Charolais">Charolais</option>
+                                    <option value="Angus">Angus</option>
+                                    <option value="Holstein">Holstein</option>
+                                    <option value="Jersey">Jersey</option>
+                                    <option value="Guernsey">Guernsey</option>
+                                    <option value="Pardo Suizo">Pardo Suizo</option>
+                                    <option value="Simbrah">Simbrah</option>
+                                    <option value="Simmental">Simmental</option>
+                                    <option value="Girolando">Girolando</option>
+                                    <option value="Gyr">Gyr</option>
+                                    <option value="Brangus">Brangus</option>
+                                    <option value="Sardo Negro">Sardo Negro</option>
+                                    <option value="Santa Gertrudis">Santa Gertrudis</option>
+                                    <option value="Cruce">Cruce</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label fw-bold" for="an-origin">Procedencia</label>
+                                <input type="text" id="an-origin" class="form-control" placeholder="Ej. Subasta Salama">
+                            </div>
+                            <div class="col-12 col-sm-4">
+                                <label class="form-label fw-bold" for="an-weight">Peso (kg)</label>
+                                <input type="number" id="an-weight" class="form-control" step="0.1" required placeholder="201">
+                            </div>
+                            <div class="col-12 col-sm-4">
+                                <label class="form-label fw-bold" for="an-price-kg">Precio por Kilo (₡)</label>
+                                <input type="number" id="an-price-kg" class="form-control" step="1" required placeholder="1600">
+                            </div>
+                            <div class="col-12 col-sm-4">
+                                <label class="form-label fw-bold" for="an-transport">Transporte (₡)</label>
+                                <input type="number" id="an-transport" class="form-control" step="1" required placeholder="15000">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold" for="an-photo">Fotografía del Animal</label>
+                                <input type="file" id="an-photo" class="form-control" accept="image/*" onchange="previewAnimalPhoto(event)">
+                                <div class="mt-2 text-center">
+                                    <img id="an-photo-preview" src="" alt="Vista previa de la fotografía del animal" class="d-none rounded border mb-2" style="max-height: 150px; object-fit: cover;">
+                                    <div id="an-photo-actions" class="d-none">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAnimalPhoto()"><i class="fa-solid fa-trash me-1" aria-hidden="true"></i>Eliminar foto</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success" onclick="saveAnimal()">Guardar Animal</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: GASTO -->
+    <div class="modal fade" id="expenseModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h2 class="modal-title fw-bold fs-5" id="expenseModalTitle">Registrar Gasto / Consumible</h2>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="expenseForm">
+                        <input type="hidden" id="ex-index">
+                        <div class="row g-3">
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label fw-bold">Fecha</label>
+                                <input type="date" id="ex-date" class="form-control" required>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label fw-bold">Aplica a</label>
+                                <select id="ex-applies" class="form-select">
+                                    <option value="Lote General">Lote General</option>
+                                    <!-- Options dynamic -->
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label fw-bold">Categoría</label>
+                                <select id="ex-category" class="form-select" required>
+                                    <option value="Alimento">Alimento</option>
+                                    <option value="Inyección">Inyección / Salud</option>
+                                    <option value="Sales/Suplementos">Sales / Suplementos</option>
+                                    <option value="Otros">Otros Gastos</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label fw-bold">Cantidad</label>
+                                <input type="number" id="ex-qty" class="form-control" step="1" required value="1">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Detalle / Producto</label>
+                                <input type="text" id="ex-detail" class="form-control" required placeholder="Ej. Avanzando (Saco 40kg)">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Costo Unitario (₡)</label>
+                                <input type="number" id="ex-unit-cost" class="form-control" step="1" required placeholder="5600">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success" onclick="saveExpense()">Guardar Gasto</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: VIEW PHOTO -->
+    <div class="modal fade" id="photoModal" tabindex="-1" aria-labelledby="photo-modal-title">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center p-2 position-relative">
+                    <button type="button" class="btn-close position-absolute top-0 end-0 m-2 bg-white p-2" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    <img id="photo-modal-img" src="" alt="" class="img-fluid rounded" style="max-height: 80vh;">
+                    <h2 id="photo-modal-title" class="mt-2 fw-bold text-dark fs-5"></h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: GESTIONAR FINCA (crear / editar / logo) -->
+    <div class="modal fade" id="fincaModal" tabindex="-1" aria-labelledby="fincaModalTitle">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h2 class="modal-title fw-bold fs-5" id="fincaModalTitle">Nueva Finca</h2>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="fincaForm">
+                        <input type="hidden" id="finca-mode" value="new">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold" for="finca-name">Nombre de la finca</label>
+                            <input type="text" id="finca-name" class="form-control" required placeholder="Ej. Ganadería 4R">
+                        </div>
+                        <div class="mb-3 text-center">
+                            <label class="form-label fw-bold d-block" for="finca-logo">Logotipo de la finca (opcional)</label>
+                            <img id="finca-logo-preview" src="" alt="Vista previa del logotipo" class="logo-shape-preview d-none mb-2">
+                            <input type="file" id="finca-logo" class="form-control" accept="image/*" onchange="previewFincaLogo(event)">
+                            <div id="finca-logo-actions" class="mt-2 d-none">
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeFincaLogo()"><i class="fa-solid fa-trash me-1" aria-hidden="true"></i>Quitar logotipo</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success" onclick="saveFincaModal()">Guardar Finca</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: EDITAR USUARIO (administrador) -->
+    <div class="modal fade" id="userEditModal" tabindex="-1" aria-labelledby="userEditModalTitle">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h2 class="modal-title fw-bold fs-5" id="userEditModalTitle">Editar Usuario</h2>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="userEditForm">
+                        <input type="hidden" id="ue-index">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold" for="ue-name">Nombre completo</label>
+                            <input type="text" id="ue-name" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold" for="ue-email">Correo electrónico</label>
+                            <input type="email" id="ue-email" class="form-control" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success" onclick="saveUserEdit()">Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    </div>
+    <!-- FIN #appContainer -->
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // TOGGLE SIDEBAR ON MOBILE
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('show');
+            document.getElementById('sidebar-overlay').classList.toggle('show');
+        }
+
+        // MICRO-INTERACCIÓN: efecto de "vibración" al hacer clic sobre las tarjetas
+        // (delegación de eventos: funciona también con tarjetas creadas dinámicamente)
+        document.addEventListener('click', function (e) {
+            const card = e.target.closest('.kpi-card, .card, .pending-user-card');
+            if (!card) return;
+            card.classList.remove('click-shake');
+            // Forzar reflow para poder reiniciar la animación si se hace clic varias veces seguidas
+            void card.offsetWidth;
+            card.classList.add('click-shake');
+        });
+
+        // DATOS INICIALES DE LA FINCA "GANADERÍA 4R" (usuario administrador)
+        const initialAnimals = [
+            { id: "371", name: "Pardo", date: "2026-07-15", breed: "Cruzado", origin: "Subasta Salama", weight: 201, priceKg: 1600, transport: 15000, photo: "" },
+            { id: "281", name: "Albino", date: "2026-07-15", breed: "Cruzado", origin: "Subasta Salama", weight: 211, priceKg: 1620, transport: 15000, photo: "" },
+            { id: "304", name: "Blanco", date: "2026-07-15", breed: "Brahman", origin: "Subasta Salama", weight: 213, priceKg: 1620, transport: 15000, photo: "" }
+        ];
+
+        const initialExpenses = [
+            { date: "2026-07-16", applies: "Lote General", category: "Alimento", detail: "Avanzando (Saco 40kg)", qty: 1, unitCost: 5600 }
+        ];
+
+        // ==========================================================
+        // CREDENCIALES DEL ADMINISTRADOR (perfil existente: Ganadería 4R)
+        // Usuario:    admin@ganaderia4r.com
+        // Contraseña: Sigga2026*
+        // (Recomendado cambiarla luego; no reutilizar en otros sitios)
+        // ==========================================================
+        const ADMIN_EMAIL = 'admin@ganaderia4r.com';
+        const ADMIN_PASSWORD = 'Sigga2026*';
+
+        // ==========================================================
+        // CONFIGURACIÓN JSONBIN (almacenamiento en la nube)
+        // Un solo Bin guarda TODOS los usuarios y TODAS las fincas.
+        // ==========================================================
+        const JSONBIN_API_KEY = '$2a$10$PDR6aEmCYInrnzMjxiXebOUfcWC6UHtgSC9jgjK1OpOjJtKabPmsa';
+        let JSONBIN_BIN_ID = '6a5fe0eaf5f4af5e29ae4018';
+        const JSONBIN_BASE_URL = 'https://api.jsonbin.io/v3/b';
+
+        // db = { users: [{id,name,email,passwordHash,role,status,fincas:[{id,name,logo,animals,expenses}]}], pendingUsers: [...] }
+        let db = { users: [], pendingUsers: [] };
+        let currentUser = null;
+        let currentFincaIndex = 0;
+
+        let animals = [];
+        let expenses = [];
+
+        let currentPhotoBase64 = "";
+        let expensesChart = null;
+
+        // FORMATTER
+        function formatCRC(amount) {
+            return '₡' + Math.round(amount).toLocaleString('es-CR');
+        }
+
+        // ==========================================================
+        // SEGURIDAD BÁSICA (hash de contraseña en el cliente)
+        // Nota: control de acceso básico, no es seguridad de backend real.
+        // ==========================================================
+        async function hashPassword(text) {
+            const enc = new TextEncoder().encode(text);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', enc);
+            return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        function buildDefaultAdmin(adminHash, fincaAnimals, fincaExpenses) {
+            return {
+                users: [{
+                    id: 'u_admin',
+                    name: 'Administrador',
+                    email: ADMIN_EMAIL,
+                    passwordHash: adminHash,
+                    role: 'admin',
+                    status: 'approved',
+                    active: true,
+                    fincas: [{
+                        id: 'f_default',
+                        name: 'Ganadería 4R',
+                        logo: 'logo-ganaderia4r.png',
+                        animals: fincaAnimals,
+                        expenses: fincaExpenses
+                    }]
+                }],
+                pendingUsers: []
+            };
+        }
+
+        // ==========================================================
+        // OVERLAY DE CARGA / SINCRONIZACIÓN (no altera el HTML original)
+        // ==========================================================
+        function showSyncOverlay(text) {
+            let overlay = document.getElementById('jsonbin-sync-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'jsonbin-sync-overlay';
+                overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;color:#fff;font-family:Montserrat,sans-serif;font-size:1.1rem;flex-direction:column;gap:12px;';
+                overlay.innerHTML = `
+                    <div class="spinner-border text-light" role="status" style="width:3rem;height:3rem;"></div>
+                    <div id="jsonbin-sync-text"></div>
+                `;
+                document.body.appendChild(overlay);
+            }
+            document.getElementById('jsonbin-sync-text').innerText = text;
+            overlay.style.display = 'flex';
+        }
+
+        function hideSyncOverlay() {
+            const overlay = document.getElementById('jsonbin-sync-overlay');
+            if (overlay) overlay.style.display = 'none';
+        }
+
+        // ==========================================================
+        // CARGA DE DATOS DESDE JSONBIN (usuarios, fincas y solicitudes)
+        // ==========================================================
+        async function loadData() {
+            showSyncOverlay('Cargando datos desde la nube...');
+            try {
+                const adminHash = await hashPassword(ADMIN_PASSWORD);
+                if (!JSONBIN_BIN_ID) {
+                    // No hay Bin configurado todavía: se crea uno nuevo con la estructura multiusuario
+                    db = buildDefaultAdmin(adminHash, initialAnimals, initialExpenses);
+                    const res = await fetch(JSONBIN_BASE_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Master-Key': JSONBIN_API_KEY,
+                            'X-Bin-Name': 'SIGGA - Datos'
+                        },
+                        body: JSON.stringify(db)
+                    });
+                    if (!res.ok) {
+                        const bodyText = await res.text().catch(() => '(sin cuerpo)');
+                        throw new Error(`HTTP ${res.status} ${res.statusText} | Respuesta: ${bodyText}`);
+                    }
+                    const data = await res.json();
+                    JSONBIN_BIN_ID = data.metadata.id;
+                    hideSyncOverlay();
+                    alert('✅ Bin creado exitosamente en JSONBin.\n\nID del Bin:\n' + JSONBIN_BIN_ID + '\n\nIMPORTANTE: copia este ID y pégalo en la variable JSONBIN_BIN_ID al inicio del <script>, luego guarda el archivo. Así todos tus dispositivos usarán el mismo Bin y verán los mismos datos.');
+                } else {
+                    const res = await fetch(`${JSONBIN_BASE_URL}/${JSONBIN_BIN_ID}/latest`, {
+                        headers: { 'X-Master-Key': JSONBIN_API_KEY }
+                    });
+                    if (!res.ok) {
+                        const bodyText = await res.text().catch(() => '(sin cuerpo)');
+                        throw new Error(`HTTP ${res.status} ${res.statusText} | Respuesta: ${bodyText}`);
+                    }
+                    const json = await res.json();
+                    const record = json.record || {};
+                    if (record.users) {
+                        // Ya tiene la estructura multiusuario
+                        db = { users: record.users || [], pendingUsers: record.pendingUsers || [] };
+                    } else {
+                        // Estructura anterior (solo animals/expenses): migrar al usuario admin sin perder datos
+                        db = buildDefaultAdmin(adminHash, record.animals || initialAnimals, record.expenses || initialExpenses);
+                        await persistDB();
+                    }
+                }
+            } catch (err) {
+                console.error('Error cargando datos de JSONBin:', err);
+                alert('⚠️ No se pudo conectar con JSONBin.\n\nDetalle técnico:\n' + (err && err.message ? err.message : err) + '\n\nSe cargarán datos de ejemplo temporalmente (no se guardarán en la nube hasta que se resuelva).');
+                const adminHash = await hashPassword(ADMIN_PASSWORD);
+                db = buildDefaultAdmin(adminHash, initialAnimals, initialExpenses);
+            }
+            hideSyncOverlay();
+        }
+
+        // ==========================================================
+        // GUARDADO DE TODA LA BASE DE DATOS (usuarios + fincas) EN JSONBIN
+        // ==========================================================
+        async function persistDB() {
+            try {
+                const res = await fetch(`${JSONBIN_BASE_URL}/${JSONBIN_BIN_ID}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': JSONBIN_API_KEY
+                    },
+                    body: JSON.stringify(db)
+                });
+                if (!res.ok) {
+                    const bodyText = await res.text().catch(() => '(sin cuerpo)');
+                    throw new Error(`HTTP ${res.status} ${res.statusText} | Respuesta: ${bodyText}`);
+                }
+            } catch (err) {
+                console.error('Error guardando datos en JSONBin:', err);
+                alert('⚠️ No se pudo sincronizar con la nube.\n\nDetalle técnico:\n' + (err && err.message ? err.message : err) + '\n\nTus cambios quedaron solo en esta sesión hasta que se resuelva.');
+            }
+        }
+
+        // Guarda los cambios de la finca activa dentro de db y sincroniza
+        async function saveData() {
+            if (currentUser && currentUser.fincas[currentFincaIndex]) {
+                currentUser.fincas[currentFincaIndex].animals = animals;
+                currentUser.fincas[currentFincaIndex].expenses = expenses;
+            }
+            updateAll();
+            await persistDB();
+        }
+
+        // ==========================================================
+        // AUTENTICACIÓN: LOGIN / REGISTRO / APROBACIÓN / SELECCIÓN DE FINCA
+        // ==========================================================
+        function togglePasswordField(inputId, iconEl) {
+            const input = document.getElementById(inputId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                iconEl.classList.remove('fa-eye');
+                iconEl.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                iconEl.classList.remove('fa-eye-slash');
+                iconEl.classList.add('fa-eye');
+            }
+        }
+
+        function showAuthView(view) {
+            document.getElementById('loginForm').classList.toggle('d-none', view !== 'login');
+            document.getElementById('registerForm').classList.toggle('d-none', view !== 'register');
+            document.getElementById('login-error').innerText = '';
+            document.getElementById('register-error').innerText = '';
+        }
+
+        async function attemptLogin() {
+            const email = document.getElementById('login-email').value.trim().toLowerCase();
+            const password = document.getElementById('login-password').value;
+            const errorEl = document.getElementById('login-error');
+            errorEl.innerText = '';
+            if (!email || !password) { errorEl.innerText = 'Ingrese correo y contraseña.'; return; }
+
+            const hash = await hashPassword(password);
+            const user = db.users.find(u => u.email.toLowerCase() === email);
+
+            if (!user) {
+                const pending = db.pendingUsers.find(p => p.email.toLowerCase() === email);
+                errorEl.innerText = pending
+                    ? 'Tu cuenta está pendiente de aprobación por el administrador.'
+                    : 'Correo o contraseña incorrectos.';
+                return;
+            }
+            if (user.passwordHash !== hash) {
+                errorEl.innerText = 'Correo o contraseña incorrectos.';
+                return;
+            }
+            if (user.active === false) {
+                errorEl.innerText = 'Tu cuenta fue desactivada. Contacta al administrador.';
+                return;
+            }
+
+            currentUser = user;
+            currentFincaIndex = 0;
+            enterApp();
+        }
+
+        let regFincaLogoBase64 = "";
+        function previewRegFincaLogo(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    regFincaLogoBase64 = e.target.result;
+                    const preview = document.getElementById('reg-finca-logo-preview');
+                    preview.src = regFincaLogoBase64;
+                    preview.classList.remove('d-none');
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function attemptRegister() {
+            const name = document.getElementById('reg-name').value.trim();
+            const email = document.getElementById('reg-email').value.trim().toLowerCase();
+            const password = document.getElementById('reg-password').value;
+            const fincaName = document.getElementById('reg-finca').value.trim() || 'Mi Finca';
+            const errorEl = document.getElementById('register-error');
+            errorEl.innerText = '';
+
+            if (!name || !email || !password) {
+                errorEl.innerText = 'Complete nombre, correo y contraseña.';
+                return;
+            }
+            const existsUser = db.users.some(u => u.email.toLowerCase() === email);
+            const existsPending = db.pendingUsers.some(p => p.email.toLowerCase() === email);
+            if (existsUser || existsPending) {
+                errorEl.innerText = 'Ya existe una cuenta o solicitud con este correo.';
+                return;
+            }
+
+            const hash = await hashPassword(password);
+            db.pendingUsers.push({
+                id: 'p_' + Date.now(),
+                name, email, passwordHash: hash, fincaName,
+                fincaLogo: regFincaLogoBase64 || '',
+                requestedAt: new Date().toISOString()
+            });
+            await persistDB();
+            alert('✅ Tu solicitud fue enviada. Un administrador debe aprobarla antes de que puedas ingresar.');
+            document.querySelectorAll('#registerForm input').forEach(i => i.value = '');
+            document.getElementById('reg-finca-logo-preview').classList.add('d-none');
+            regFincaLogoBase64 = "";
+            showAuthView('login');
+        }
+
+        function logoutUser() {
+            currentUser = null;
+            currentFincaIndex = 0;
+            document.getElementById('appContainer').classList.add('d-none');
+            document.getElementById('authScreen').classList.remove('d-none');
+            document.getElementById('login-email').value = '';
+            document.getElementById('login-password').value = '';
+            showAuthView('login');
+        }
+
+        function enterApp() {
+            document.getElementById('authScreen').classList.add('d-none');
+            document.getElementById('appContainer').classList.remove('d-none');
+            document.getElementById('sidebarUserName').innerText = currentUser.name + (currentUser.role === 'admin' ? ' (Admin)' : '');
+            document.getElementById('adminNavLink').classList.toggle('d-none', currentUser.role !== 'admin');
+
+            populateFincaSwitcher();
+            selectFinca(0);
+            if (currentUser.role === 'admin') { renderPendingUsers(); renderAllUsers(); }
+            switchTab('dashboard');
+        }
+
+        function populateFincaSwitcher() {
+            const sel = document.getElementById('fincaSwitcher');
+            sel.innerHTML = '';
+            currentUser.fincas.forEach((f, i) => {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.innerText = f.name;
+                sel.appendChild(opt);
+            });
+        }
+
+        function selectFinca(index) {
+            currentFincaIndex = parseInt(index) || 0;
+            const finca = currentUser.fincas[currentFincaIndex];
+            animals = finca.animals || [];
+            expenses = finca.expenses || [];
+
+            document.getElementById('sidebarFincaName').innerText = finca.name;
+            document.getElementById('sidebarLogo').src = finca.logo || 'icon-192.png';
+            document.getElementById('fincaSwitcher').value = currentFincaIndex;
+
+            const upperName = (finca.name || 'SIGGA').toUpperCase();
+            document.getElementById('report-finca-title').innerText = upperName + ' - INFORME GANADERO';
+            document.getElementById('dash-grand-total-label').innerText = 'COSTO TOTAL ACUMULADO ' + upperName;
+
+            updateAll();
+        }
+
+        // ==========================================================
+        // GESTIÓN DE FINCA (crear / editar / eliminar / logotipo)
+        // ==========================================================
+        let fincaLogoBase64 = "";
+        let fincaLogoRemoved = false;
+
+        function previewFincaLogo(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    fincaLogoBase64 = e.target.result;
+                    fincaLogoRemoved = false;
+                    const preview = document.getElementById('finca-logo-preview');
+                    preview.src = fincaLogoBase64;
+                    preview.classList.remove('d-none');
+                    document.getElementById('finca-logo-actions').classList.remove('d-none');
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function removeFincaLogo() {
+            fincaLogoBase64 = "";
+            fincaLogoRemoved = true;
+            document.getElementById('finca-logo').value = "";
+            const preview = document.getElementById('finca-logo-preview');
+            preview.src = "";
+            preview.classList.add('d-none');
+            document.getElementById('finca-logo-actions').classList.add('d-none');
+        }
+
+        function openFincaModal(mode) {
+            fincaLogoBase64 = "";
+            fincaLogoRemoved = false;
+            document.getElementById('fincaForm').reset();
+            document.getElementById('finca-mode').value = mode;
+            document.getElementById('finca-logo-preview').classList.add('d-none');
+            document.getElementById('finca-logo-actions').classList.add('d-none');
+
+            if (mode === 'edit') {
+                const finca = currentUser.fincas[currentFincaIndex];
+                document.getElementById('fincaModalTitle').innerText = 'Editar Finca';
+                document.getElementById('finca-name').value = finca.name;
+                if (finca.logo) {
+                    const preview = document.getElementById('finca-logo-preview');
+                    preview.src = finca.logo;
+                    preview.classList.remove('d-none');
+                    document.getElementById('finca-logo-actions').classList.remove('d-none');
+                }
+            } else {
+                document.getElementById('fincaModalTitle').innerText = 'Nueva Finca';
+            }
+            new bootstrap.Modal(document.getElementById('fincaModal')).show();
+        }
+
+        async function saveFincaModal() {
+            const mode = document.getElementById('finca-mode').value;
+            const name = document.getElementById('finca-name').value.trim();
+            if (!name) {
+                alert('Por favor ingrese el nombre de la finca.');
+                return;
+            }
+
+            if (mode === 'edit') {
+                const finca = currentUser.fincas[currentFincaIndex];
+                finca.name = name;
+                if (fincaLogoRemoved) finca.logo = '';
+                else if (fincaLogoBase64) finca.logo = fincaLogoBase64;
+            } else {
+                currentUser.fincas.push({
+                    id: 'f_' + Date.now(),
+                    name,
+                    logo: fincaLogoBase64 || '',
+                    animals: [],
+                    expenses: []
+                });
+                currentFincaIndex = currentUser.fincas.length - 1;
+            }
+
+            populateFincaSwitcher();
+            selectFinca(currentFincaIndex);
+            await persistDB();
+            bootstrap.Modal.getInstance(document.getElementById('fincaModal')).hide();
+        }
+
+        async function deleteCurrentFinca() {
+            if (currentUser.fincas.length <= 1) {
+                alert('No se puede eliminar: debe existir al menos una finca en tu cuenta.');
+                return;
+            }
+            const finca = currentUser.fincas[currentFincaIndex];
+            if (!confirm(`¿Desea eliminar la finca "${finca.name}"? Se perderán todos sus animales y gastos registrados.`)) return;
+
+            currentUser.fincas.splice(currentFincaIndex, 1);
+            currentFincaIndex = 0;
+            populateFincaSwitcher();
+            selectFinca(0);
+            await persistDB();
+        }
+
+        // ADMIN: aprobación de usuarios registrados
+        function renderPendingUsers() {
+            const list = document.getElementById('pendingUsersList');
+            const badge = document.getElementById('pendingCountBadge');
+            if (!list) return;
+
+            if (!db.pendingUsers.length) {
+                list.innerHTML = '<p class="text-muted">No hay solicitudes pendientes.</p>';
+                badge.classList.add('d-none');
+                return;
+            }
+            badge.classList.remove('d-none');
+            badge.innerText = db.pendingUsers.length;
+
+            list.innerHTML = '';
+            db.pendingUsers.forEach((p, idx) => {
+                const div = document.createElement('div');
+                div.className = 'card pending-user-card p-3 mb-2';
+                div.innerHTML = `
+                    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
+                        <div>
+                            <strong>${p.name}</strong> <span class="text-muted small">(${p.email})</span><br>
+                            <small class="text-muted">Finca solicitada: ${p.fincaName}</small>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-success" onclick="approvePendingUser(${idx})"><i class="fa-solid fa-check me-1"></i>Aprobar</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="rejectPendingUser(${idx})"><i class="fa-solid fa-xmark me-1"></i>Rechazar</button>
+                        </div>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        async function approvePendingUser(idx) {
+            const p = db.pendingUsers[idx];
+            if (!p) return;
+            db.users.push({
+                id: 'u_' + Date.now(),
+                name: p.name,
+                email: p.email,
+                passwordHash: p.passwordHash,
+                role: 'user',
+                status: 'approved',
+                active: true,
+                fincas: [{ id: 'f_' + Date.now(), name: p.fincaName, logo: p.fincaLogo || '', animals: [], expenses: [] }]
+            });
+            db.pendingUsers.splice(idx, 1);
+            await persistDB();
+            renderPendingUsers();
+            renderAllUsers();
+            alert('Usuario aprobado correctamente.');
+        }
+
+        async function rejectPendingUser(idx) {
+            if (!confirm('¿Desea rechazar y eliminar esta solicitud?')) return;
+            db.pendingUsers.splice(idx, 1);
+            await persistDB();
+            renderPendingUsers();
+        }
+
+        // ==========================================================
+        // ADMIN: GESTIÓN COMPLETA DE USUARIOS REGISTRADOS
+        // ==========================================================
+        function renderAllUsers() {
+            const list = document.getElementById('allUsersList');
+            if (!list) return;
+            list.innerHTML = '';
+
+            db.users.forEach((u, idx) => {
+                const isSelf = currentUser && u.id === currentUser.id;
+                const statusBadge = u.active === false
+                    ? '<span class="badge bg-secondary">Desactivado</span>'
+                    : '<span class="badge bg-success">Activo</span>';
+                const roleBadge = u.role === 'admin'
+                    ? '<span class="badge bg-dark">Administrador</span>'
+                    : '<span class="badge bg-primary">Usuario</span>';
+
+                const div = document.createElement('div');
+                div.className = 'card pending-user-card p-3 mb-2';
+                div.innerHTML = `
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+                        <div>
+                            <strong>${u.name}</strong> <span class="text-muted small">(${u.email})</span>
+                            ${isSelf ? '<span class="badge bg-info text-dark ms-1">Tú</span>' : ''}<br>
+                            <span class="me-1">${roleBadge}</span>${statusBadge}
+                            <small class="text-muted d-block mt-1">Fincas: ${u.fincas.map(f => f.name).join(', ')}</small>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button class="btn btn-sm btn-outline-primary" onclick="openEditUserModal(${idx})" aria-label="Editar datos de ${u.name}"><i class="fa-solid fa-pen me-1" aria-hidden="true"></i>Editar</button>
+                            <button class="btn btn-sm btn-outline-warning" onclick="resetUserPassword(${idx})" aria-label="Restablecer contraseña de ${u.name}"><i class="fa-solid fa-key me-1" aria-hidden="true"></i>Restablecer contraseña</button>
+                            <button class="btn btn-sm ${u.active === false ? 'btn-outline-success' : 'btn-outline-secondary'}" onclick="toggleUserActive(${idx})" ${u.role === 'admin' ? 'disabled' : ''} aria-label="${u.active === false ? 'Activar' : 'Desactivar'} a ${u.name}">
+                                <i class="fa-solid ${u.active === false ? 'fa-toggle-on' : 'fa-toggle-off'} me-1" aria-hidden="true"></i>${u.active === false ? 'Activar' : 'Desactivar'}
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(${idx})" ${u.role === 'admin' ? 'disabled' : ''} aria-label="Eliminar a ${u.name}"><i class="fa-solid fa-trash me-1" aria-hidden="true"></i>Eliminar</button>
+                        </div>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function openEditUserModal(idx) {
+            const u = db.users[idx];
+            if (!u) return;
+            document.getElementById('ue-index').value = idx;
+            document.getElementById('ue-name').value = u.name;
+            document.getElementById('ue-email').value = u.email;
+            new bootstrap.Modal(document.getElementById('userEditModal')).show();
+        }
+
+        async function saveUserEdit() {
+            const idx = document.getElementById('ue-index').value;
+            const u = db.users[idx];
+            if (!u) return;
+            const newName = document.getElementById('ue-name').value.trim();
+            const newEmail = document.getElementById('ue-email').value.trim().toLowerCase();
+            if (!newName || !newEmail) {
+                alert('Por favor complete nombre y correo.');
+                return;
+            }
+            const emailTaken = db.users.some((other, i) => i != idx && other.email.toLowerCase() === newEmail);
+            if (emailTaken) {
+                alert('Ese correo ya está en uso por otro usuario.');
+                return;
+            }
+            u.name = newName;
+            u.email = newEmail;
+            await persistDB();
+            renderAllUsers();
+            if (currentUser && currentUser.id === u.id) {
+                document.getElementById('sidebarUserName').innerText = u.name + (u.role === 'admin' ? ' (Admin)' : '');
+            }
+            bootstrap.Modal.getInstance(document.getElementById('userEditModal')).hide();
+        }
+
+        async function toggleUserActive(idx) {
+            const u = db.users[idx];
+            if (!u || u.role === 'admin') return;
+            u.active = u.active === false ? true : false;
+            await persistDB();
+            renderAllUsers();
+        }
+
+        async function resetUserPassword(idx) {
+            const u = db.users[idx];
+            if (!u) return;
+            const newPassword = prompt(`Ingrese la nueva contraseña temporal para ${u.name}:`);
+            if (!newPassword) return;
+            u.passwordHash = await hashPassword(newPassword);
+            await persistDB();
+            alert(`✅ Contraseña restablecida. Comunícale al usuario su nueva contraseña temporal de forma segura.`);
+        }
+
+        async function deleteUser(idx) {
+            const u = db.users[idx];
+            if (!u || u.role === 'admin') return;
+            if (!confirm(`¿Desea eliminar permanentemente al usuario "${u.name}" y todas sus fincas? Esta acción no se puede deshacer.`)) return;
+            db.users.splice(idx, 1);
+            await persistDB();
+            renderAllUsers();
+        }
+
+        // NAVIGATION
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('d-none'));
+            document.querySelectorAll('#sidebar .nav-link').forEach(el => el.classList.remove('active'));
+
+            document.getElementById(`tab-${tabId}`).classList.remove('d-none');
+            
+            // Set active nav link
+            const links = document.querySelectorAll('#sidebar .nav-link');
+            if (tabId === 'dashboard') links[0].classList.add('active');
+            if (tabId === 'animals') links[1].classList.add('active');
+            if (tabId === 'expenses') links[2].classList.add('active');
+            if (tabId === 'reports') links[3].classList.add('active');
+            if (tabId === 'admin' && links[4]) links[4].classList.add('active');
+
+            const titles = {
+                'dashboard': 'Resumen General',
+                'animals': 'Control de Animales (Hato)',
+                'expenses': 'Registro de Consumibles y Gastos Operativos',
+                'reports': 'Informes y Reportes Financieros',
+                'admin': 'Aprobación de Nuevos Usuarios'
+            };
+            document.getElementById('page-title').innerText = titles[tabId];
+
+            // Close sidebar on mobile after clicking
+            if (window.innerWidth < 992) {
+                document.getElementById('sidebar').classList.remove('show');
+                document.getElementById('sidebar-overlay').classList.remove('show');
+            }
+            
+            if(tabId === 'reports') renderReport();
+            if(tabId === 'admin') { renderPendingUsers(); renderAllUsers(); }
+        }
+
+        // UPDATE ALL CALCULATIONS & TABLES
+        function updateAll() {
+            renderAnimalsTable();
+            renderExpensesTable();
+            updateDashboard();
+            updateAppliesOptions();
+        }
+
+        // DASHBOARD CALCULATIONS
+        function updateDashboard() {
+            const totalHead = animals.length;
+            const totalWeight = animals.reduce((acc, a) => acc + Number(a.weight), 0);
+            const avgWeight = totalHead > 0 ? (totalWeight / totalHead).toFixed(1) : 0;
+
+            const totalPurchasePaid = animals.reduce((acc, a) => acc + (a.weight * a.priceKg), 0);
+            const totalTransport = animals.reduce((acc, a) => acc + Number(a.transport), 0);
+            const totalInitialInv = totalPurchasePaid + totalTransport;
+
+            // Expenses by Category
+            let foodCost = 0, healthCost = 0, saltCost = 0, otherCost = 0;
+
+            expenses.forEach(e => {
+                const total = e.qty * e.unitCost;
+                if(e.category === 'Alimento') foodCost += total;
+                else if(e.category === 'Inyección') healthCost += total;
+                else if(e.category === 'Sales/Suplementos') saltCost += total;
+                else otherCost += total;
+            });
+
+            const grandTotal = totalInitialInv + foodCost + healthCost + saltCost + otherCost;
+
+            // Update KPI cards
+            document.getElementById('kpi-total-animals').innerText = totalHead;
+            document.getElementById('kpi-avg-weight').innerText = `${avgWeight} kg`;
+            document.getElementById('kpi-total-animals-cost').innerText = formatCRC(totalInitialInv);
+            document.getElementById('kpi-total-overall-cost').innerText = formatCRC(grandTotal);
+
+            // Update Dashboard Table
+            document.getElementById('dash-purchase-cost').innerText = formatCRC(totalPurchasePaid);
+            document.getElementById('dash-transport-cost').innerText = formatCRC(totalTransport);
+            document.getElementById('dash-food-cost').innerText = formatCRC(foodCost);
+            document.getElementById('dash-health-cost').innerText = formatCRC(healthCost);
+            document.getElementById('dash-salt-cost').innerText = formatCRC(saltCost);
+            document.getElementById('dash-other-cost').innerText = formatCRC(otherCost);
+            document.getElementById('dash-grand-total').innerText = formatCRC(grandTotal);
+
+            // Chart.js Update
+            updateExpensesChart(totalPurchasePaid, totalTransport, foodCost, healthCost, saltCost, otherCost);
+        }
+
+        function updateExpensesChart(purchase, transport, food, health, salt, other) {
+            const ctx = document.getElementById('expensesChart').getContext('2d');
+            if(expensesChart) expensesChart.destroy();
+
+            expensesChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Compra Terneros', 'Transporte', 'Alimentos', 'Salud/Inyecciones', 'Sales/Suplementos', 'Otros'],
+                    datasets: [{
+                        data: [purchase, transport, food, health, salt, other],
+                        backgroundColor: ['#1b4d3e', '#2c6e5a', '#d4a373', '#e76f51', '#2a9d8f', '#e9c46a']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        // ANIMALS TABLE RENDER
+        function renderAnimalsTable() {
+            const tbody = document.getElementById('animals-tbody');
+            const search = document.getElementById('search-animal').value.toLowerCase();
+            tbody.innerHTML = '';
+
+            let sumWeight = 0, sumPricePaid = 0, sumTransport = 0, sumInitial = 0, sumExpenses = 0, sumGrandTotal = 0;
+
+            animals.filter(a => 
+                a.id.toString().toLowerCase().includes(search) || 
+                a.name.toLowerCase().includes(search) ||
+                a.breed.toLowerCase().includes(search) ||
+                a.origin.toLowerCase().includes(search)
+            ).forEach((a, index) => {
+                const paid = a.weight * a.priceKg;
+                const initialInv = paid + Number(a.transport);
+                
+                // Calculate direct animal expenses
+                const directExp = expenses
+                    .filter(e => e.applies.toString() === a.id.toString())
+                    .reduce((acc, e) => acc + (e.qty * e.unitCost), 0);
+
+                const totalAcc = initialInv + directExp;
+
+                sumWeight += Number(a.weight);
+                sumPricePaid += paid;
+                sumTransport += Number(a.transport);
+                sumInitial += initialInv;
+                sumExpenses += directExp;
+                sumGrandTotal += totalAcc;
+
+                const defaultImg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50' fill='%23aaa' class='bi bi-cow' viewBox='0 0 16 16'%3E%3Cpath d='M11.5 3a.5.5 0 0 1 .5.5V4h1a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1h-1v1.5a.5.5 0 0 1-1 0V3.5a.5.5 0 0 1 .5-.5z'/%3E%3Cpath d='M4 3a.5.5 0 0 0-.5.5V7H2.5A1.5 1.5 0 0 0 1 8.5v3A1.5 1.5 0 0 0 2.5 13H3v1.5a.5.5 0 0 0 1 0V13h8v1.5a.5.5 0 0 0 1 0V13h.5a1.5 1.5 0 0 0 1.5-1.5v-3A1.5 1.5 0 0 0 13.5 7H12.5V3.5a.5.5 0 0 0-.5-.5H4z'/%3E%3C/svg%3E";
+
+                const row = document.createElement('tr');
+                const recordType = a.recordType || 'Compra';
+                const recordBadgeClass = recordType === 'Nacido' ? 'bg-success' : 'bg-primary';
+                row.innerHTML = `
+                    <td>
+                        <img src="${a.photo || defaultImg}" alt="Fotografía de ${a.name}" class="animal-img-thumb" onclick="openPhotoModal('${a.photo || defaultImg}', 'Animal ID: ${a.id} - ${a.name}')">
+                    </td>
+                    <td><span class="badge ${recordBadgeClass}">${recordType === 'Nacido' ? 'Nacido' : 'Compra'}</span></td>
+                    <td>${a.date || '2026-07-15'}</td>
+                    <td class="fw-bold text-success">${a.id}</td>
+                    <td class="fw-semibold">${a.name}</td>
+                    <td><span class="badge badge-breed">${a.breed}</span></td>
+                    <td>${a.origin}</td>
+                    <td class="fw-bold">${a.weight} kg</td>
+                    <td>${formatCRC(a.priceKg)}</td>
+                    <td>${formatCRC(paid)}</td>
+                    <td>${formatCRC(a.transport)}</td>
+                    <td class="fw-bold text-dark">${formatCRC(initialInv)}</td>
+                    <td class="text-danger fw-semibold">${formatCRC(directExp)}</td>
+                    <td class="fw-bold text-success fs-6">${formatCRC(totalAcc)}</td>
+                    <td class="no-print">
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editAnimal(${index})" aria-label="Editar animal ${a.name}"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteAnimal(${index})" aria-label="Eliminar animal ${a.name}"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Footer Totals
+            document.getElementById('animals-tfoot').innerHTML = `
+                <tr>
+                    <td colspan="7">TOTALES DEL HATO</td>
+                    <td>${sumWeight} kg</td>
+                    <td>-</td>
+                    <td>${formatCRC(sumPricePaid)}</td>
+                    <td>${formatCRC(sumTransport)}</td>
+                    <td>${formatCRC(sumInitial)}</td>
+                    <td>${formatCRC(sumExpenses)}</td>
+                    <td class="text-success fs-6">${formatCRC(sumGrandTotal)}</td>
+                    <td class="no-print"></td>
+                </tr>
+            `;
+        }
+
+        // EXPENSES TABLE RENDER
+        function renderExpensesTable() {
+            const tbody = document.getElementById('expenses-tbody');
+            const search = document.getElementById('search-expense').value.toLowerCase();
+            tbody.innerHTML = '';
+
+            let totalExpenseSum = 0;
+
+            expenses.filter(e =>
+                e.detail.toLowerCase().includes(search) ||
+                e.category.toLowerCase().includes(search) ||
+                e.applies.toString().toLowerCase().includes(search)
+            ).forEach((e, index) => {
+                const total = e.qty * e.unitCost;
+                totalExpenseSum += total;
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${e.date}</td>
+                    <td><span class="badge ${e.applies === 'Lote General' ? 'bg-secondary' : 'bg-primary'}">${e.applies}</span></td>
+                    <td><span class="badge bg-light text-dark border">${e.category}</span></td>
+                    <td class="fw-semibold">${e.detail}</td>
+                    <td class="text-center">${e.qty}</td>
+                    <td class="text-end">${formatCRC(e.unitCost)}</td>
+                    <td class="text-end fw-bold text-danger">${formatCRC(total)}</td>
+                    <td class="no-print text-center">
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editExpense(${index})"><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteExpense(${index})"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            document.getElementById('expenses-tfoot').innerHTML = `
+                <tr>
+                    <td colspan="6">TOTAL CONSUMIBLES Y GASTOS</td>
+                    <td class="text-end text-danger fs-6">${formatCRC(totalExpenseSum)}</td>
+                    <td class="no-print"></td>
+                </tr>
+            `;
+        }
+
+        // ANIMAL MODAL ACTIONS
+        let photoWasRemoved = false;
+
+        function updateAnimalDateLabel() {
+            const type = document.getElementById('an-record-type').value;
+            document.getElementById('an-date-label').innerText = type === 'Nacido' ? 'Fecha de Nacimiento' : 'Fecha de Compra';
+        }
+
+        function openAnimalModal(isEdit = false) {
+            currentPhotoBase64 = "";
+            photoWasRemoved = false;
+            document.getElementById('animalForm').reset();
+            document.getElementById('an-index').value = "";
+            document.getElementById('an-photo-preview').classList.add('d-none');
+            document.getElementById('an-photo-actions').classList.add('d-none');
+            document.getElementById('animalModalTitle').innerText = isEdit ? "Editar Animal" : "Registrar Nuevo Animal";
+            if(!isEdit) {
+                document.getElementById('an-date').value = new Date().toISOString().split('T')[0];
+                document.getElementById('an-record-type').value = 'Compra';
+            }
+            updateAnimalDateLabel();
+            new bootstrap.Modal(document.getElementById('animalModal')).show();
+        }
+
+        function previewAnimalPhoto(event) {
+            const file = event.target.files[0];
+            if(file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentPhotoBase64 = e.target.result;
+                    photoWasRemoved = false;
+                    const preview = document.getElementById('an-photo-preview');
+                    preview.src = currentPhotoBase64;
+                    preview.classList.remove('d-none');
+                    document.getElementById('an-photo-actions').classList.remove('d-none');
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function removeAnimalPhoto() {
+            currentPhotoBase64 = "";
+            photoWasRemoved = true;
+            document.getElementById('an-photo').value = "";
+            const preview = document.getElementById('an-photo-preview');
+            preview.src = "";
+            preview.classList.add('d-none');
+            document.getElementById('an-photo-actions').classList.add('d-none');
+        }
+
+        function saveAnimal() {
+            const index = document.getElementById('an-index').value;
+            let finalPhoto = "";
+            if (photoWasRemoved) {
+                finalPhoto = "";
+            } else if (currentPhotoBase64) {
+                finalPhoto = currentPhotoBase64;
+            } else if (index !== "") {
+                finalPhoto = animals[index].photo;
+            }
+
+            const animalObj = {
+                id: document.getElementById('an-id').value.trim(),
+                name: document.getElementById('an-name').value.trim(),
+                recordType: document.getElementById('an-record-type').value,
+                date: document.getElementById('an-date').value,
+                breed: document.getElementById('an-breed').value,
+                origin: document.getElementById('an-origin').value.trim(),
+                weight: parseFloat(document.getElementById('an-weight').value) || 0,
+                priceKg: parseFloat(document.getElementById('an-price-kg').value) || 0,
+                transport: parseFloat(document.getElementById('an-transport').value) || 0,
+                photo: finalPhoto
+            };
+
+            if(!animalObj.id || !animalObj.name) {
+                alert("Por favor complete los campos obligatorios (ID y Nombre)");
+                return;
+            }
+
+            if(index === "") {
+                animals.push(animalObj);
+            } else {
+                animals[index] = animalObj;
+            }
+
+            saveData();
+            bootstrap.Modal.getInstance(document.getElementById('animalModal')).hide();
+        }
+
+        function editAnimal(index) {
+            const a = animals[index];
+            openAnimalModal(true);
+
+            document.getElementById('an-index').value = index;
+            document.getElementById('an-id').value = a.id;
+            document.getElementById('an-name').value = a.name;
+            document.getElementById('an-record-type').value = a.recordType || 'Compra';
+            document.getElementById('an-date').value = a.date || "2026-07-15";
+            document.getElementById('an-breed').value = a.breed || 'Cruce';
+            document.getElementById('an-origin').value = a.origin;
+            document.getElementById('an-weight').value = a.weight;
+            document.getElementById('an-price-kg').value = a.priceKg;
+            document.getElementById('an-transport').value = a.transport;
+            updateAnimalDateLabel();
+
+            if(a.photo) {
+                currentPhotoBase64 = a.photo;
+                const preview = document.getElementById('an-photo-preview');
+                preview.src = a.photo;
+                preview.classList.remove('d-none');
+                document.getElementById('an-photo-actions').classList.remove('d-none');
+            }
+        }
+
+        function deleteAnimal(index) {
+            if(confirm(`¿Desea eliminar el animal ID ${animals[index].id} - ${animals[index].name}?`)) {
+                animals.splice(index, 1);
+                saveData();
+            }
+        }
+
+        // EXPENSE MODAL ACTIONS
+        function openExpenseModal(isEdit = false) {
+            document.getElementById('expenseForm').reset();
+            document.getElementById('ex-index').value = "";
+            document.getElementById('expenseModalTitle').innerText = isEdit ? "Editar Gasto" : "Registrar Nuevo Gasto";
+            if(!isEdit) document.getElementById('ex-date').value = new Date().toISOString().split('T')[0];
+            new bootstrap.Modal(document.getElementById('expenseModal')).show();
+        }
+
+        function updateAppliesOptions() {
+            const select = document.getElementById('ex-applies');
+            select.innerHTML = '<option value="Lote General">Lote General</option>';
+            animals.forEach(a => {
+                select.innerHTML += `<option value="${a.id}">Animal ID: ${a.id} (${a.name})</option>`;
+            });
+        }
+
+        function saveExpense() {
+            const index = document.getElementById('ex-index').value;
+            const expObj = {
+                date: document.getElementById('ex-date').value,
+                applies: document.getElementById('ex-applies').value,
+                category: document.getElementById('ex-category').value,
+                detail: document.getElementById('ex-detail').value.trim(),
+                qty: parseInt(document.getElementById('ex-qty').value) || 1,
+                unitCost: parseFloat(document.getElementById('ex-unit-cost').value) || 0
+            };
+
+            if(!expObj.detail) {
+                alert("Por favor ingrese el detalle del producto o servicio.");
+                return;
+            }
+
+            if(index === "") {
+                expenses.push(expObj);
+            } else {
+                expenses[index] = expObj;
+            }
+
+            saveData();
+            bootstrap.Modal.getInstance(document.getElementById('expenseModal')).hide();
+        }
+
+        function editExpense(index) {
+            const e = expenses[index];
+            openExpenseModal(true);
+
+            document.getElementById('ex-index').value = index;
+            document.getElementById('ex-date').value = e.date;
+            document.getElementById('ex-applies').value = e.applies;
+            document.getElementById('ex-category').value = e.category;
+            document.getElementById('ex-detail').value = e.detail;
+            document.getElementById('ex-qty').value = e.qty;
+            document.getElementById('ex-unit-cost').value = e.unitCost;
+        }
+
+        function deleteExpense(index) {
+            if(confirm("¿Desea eliminar este registro de gasto?")) {
+                expenses.splice(index, 1);
+                saveData();
+            }
+        }
+
+        // PHOTO MODAL
+        function openPhotoModal(imgSrc, title) {
+            document.getElementById('photo-modal-img').src = imgSrc;
+            document.getElementById('photo-modal-title').innerText = title;
+            new bootstrap.Modal(document.getElementById('photoModal')).show();
+        }
+
+        // REPORT GENERATION
+        function renderReport() {
+            document.getElementById('report-date').innerText = new Date().toLocaleDateString('es-CR');
+
+            const totalHead = animals.length;
+            const totalWeight = animals.reduce((acc, a) => acc + Number(a.weight), 0);
+
+            const totalPurchasePaid = animals.reduce((acc, a) => acc + (a.weight * a.priceKg), 0);
+            const totalTransport = animals.reduce((acc, a) => acc + Number(a.transport), 0);
+            const totalPurchaseInv = totalPurchasePaid + totalTransport;
+
+            const totalConsumables = expenses.reduce((acc, e) => acc + (e.qty * e.unitCost), 0);
+            const totalInv = totalPurchaseInv + totalConsumables;
+
+            document.getElementById('rep-total-head').innerText = totalHead;
+            document.getElementById('rep-total-weight').innerText = `${totalWeight} kg`;
+            document.getElementById('rep-purchase-inv').innerText = formatCRC(totalPurchaseInv);
+            document.getElementById('rep-consumables-inv').innerText = formatCRC(totalConsumables);
+            document.getElementById('rep-total-inv').innerText = formatCRC(totalInv);
+
+            // KPIs
+            const avgPurchaseAnimal = totalHead > 0 ? totalPurchaseInv / totalHead : 0;
+            const avgPriceKg = totalWeight > 0 ? totalPurchasePaid / totalWeight : 0;
+            const avgExpenseAnimal = totalHead > 0 ? totalConsumables / totalHead : 0;
+            const finalAvgAnimal = totalHead > 0 ? totalInv / totalHead : 0;
+
+            document.getElementById('rep-avg-cost-animal').innerText = formatCRC(avgPurchaseAnimal);
+            document.getElementById('rep-avg-price-kg').innerText = formatCRC(avgPriceKg);
+            document.getElementById('rep-avg-expense-animal').innerText = formatCRC(avgExpenseAnimal);
+            document.getElementById('rep-final-avg-animal').innerText = formatCRC(finalAvgAnimal);
+
+            // Table
+            const tbody = document.getElementById('rep-animals-tbody');
+            tbody.innerHTML = '';
+            animals.forEach(a => {
+                const initial = (a.weight * a.priceKg) + Number(a.transport);
+                const directExp = expenses
+                    .filter(e => e.applies.toString() === a.id.toString())
+                    .reduce((acc, e) => acc + (e.qty * e.unitCost), 0);
+                const totalAnimalCost = initial + directExp;
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="fw-bold">${a.id}</td>
+                        <td>${a.name}</td>
+                        <td>${a.breed}</td>
+                        <td>${a.weight} kg</td>
+                        <td>${formatCRC(initial)}</td>
+                        <td>${formatCRC(directExp)}</td>
+                        <td class="fw-bold text-success">${formatCRC(totalAnimalCost)}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function exportDataJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ animals, expenses }));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `SIGGA_Respaldo_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function printPage() {
+            window.print();
+        }
+
+        // INITIAL LOAD: se cargan los datos de la nube y luego se muestra la pantalla de acceso
+        window.onload = async function() {
+            await loadData();
+            showAuthView('login');
+        };
+
+        // ================= REGISTRO DEL SERVICE WORKER (PWA) =================
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(function (reg) {
+                        console.log('Service Worker registrado:', reg.scope);
+                    })
+                    .catch(function (err) {
+                        console.error('Error registrando Service Worker:', err);
+                    });
+            });
+        }
+        // =======================================================================
+    </script>
+</body>
+</html>
