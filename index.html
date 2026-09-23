@@ -506,6 +506,11 @@
                 <i class="fa-solid fa-cow" aria-hidden="true"></i>
                 <span>Control de Animales</span>
             </a>
+            <a href="#" class="nav-link" onclick="switchTab('health')">
+                <i class="fa-solid fa-syringe" aria-hidden="true"></i>
+                <span>Salud Animal</span>
+                <span id="healthDueBadge" class="badge bg-danger ms-auto d-none">0</span>
+            </a>
             <a href="#" class="nav-link" onclick="switchTab('expenses')">
                 <i class="fa-solid fa-receipt" aria-hidden="true"></i>
                 <span>Gastos y Consumibles</span>
@@ -698,6 +703,7 @@
                                 <th>Fecha</th>
                                 <th>ID / Arete</th>
                                 <th>Nombre</th>
+                                <th>Sexo</th>
                                 <th>Raza</th>
                                 <th>Procedencia</th>
                                 <th>Peso (kg)</th>
@@ -716,6 +722,47 @@
                         <tfoot class="table-light border-top fw-bold" id="animals-tfoot">
                             <!-- Totals populated via JS -->
                         </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: CONTROL DE SALUD ANIMAL -->
+        <div id="tab-health" class="tab-content d-none">
+            <div id="health-alert-banner" class="alert alert-warning d-none no-print" role="alert">
+                <i class="fa-solid fa-triangle-exclamation me-2" aria-hidden="true"></i>
+                <span id="health-alert-text"></span>
+            </div>
+
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-3 mb-3 no-print">
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                    <input type="text" id="search-health" class="form-control" placeholder="Buscar por Arete/ID, animal, tipo o producto..." onkeyup="renderHealthTable()">
+                </div>
+                <button class="btn btn-primary-3r text-nowrap" onclick="openHealthModal()"><i class="fa-solid fa-plus me-1"></i> Registrar Aplicación</button>
+            </div>
+
+            <div class="table-custom">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>ID / Arete</th>
+                                <th>Animal</th>
+                                <th>Tipo</th>
+                                <th>Producto / Principio Activo</th>
+                                <th>Dosis</th>
+                                <th>Vía</th>
+                                <th>Fecha Aplicación</th>
+                                <th>Próximo Refuerzo</th>
+                                <th>Responsable</th>
+                                <th>Observaciones</th>
+                                <th class="no-print text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="health-tbody">
+                            <!-- Populated via JS -->
+                        </tbody>
                     </table>
                 </div>
             </div>
@@ -1157,6 +1204,14 @@
                                 </select>
                             </div>
                             <div class="col-12 col-sm-6">
+                                <label class="form-label fw-bold" for="an-sex">Sexo</label>
+                                <select id="an-sex" class="form-select" required>
+                                    <option value="">Seleccione...</option>
+                                    <option value="Macho">Macho</option>
+                                    <option value="Hembra">Hembra</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-6">
                                 <label class="form-label fw-bold" for="an-origin">Procedencia</label>
                                 <input type="text" id="an-origin" class="form-control" placeholder="Ej. Subasta Salama">
                             </div>
@@ -1188,6 +1243,77 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-success" onclick="saveAnimal()">Guardar Animal</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: SALUD ANIMAL -->
+    <div class="modal fade" id="healthModal" tabindex="-1" aria-labelledby="healthModalTitle">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h2 class="modal-title fw-bold fs-5" id="healthModalTitle">Registrar Aplicación Sanitaria</h2>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="healthForm">
+                        <input type="hidden" id="hl-index">
+                        <div class="row g-3">
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label fw-bold" for="hl-animal">Animal (ID / Arete)</label>
+                                <select id="hl-animal" class="form-select" required></select>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label fw-bold" for="hl-type">Tipo de Aplicación</label>
+                                <select id="hl-type" class="form-select" required>
+                                    <option value="Vacuna">Vacuna</option>
+                                    <option value="Desparasitante">Desparasitante</option>
+                                    <option value="Suplemento">Suplemento</option>
+                                    <option value="Antibiótico">Antibiótico</option>
+                                    <option value="Vitamina">Vitamina</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label fw-bold" for="hl-product">Nombre Comercial / Principio Activo</label>
+                                <input type="text" id="hl-product" class="form-control" placeholder="Ej. Ivomec / Ivermectina">
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label fw-bold" for="hl-dose">Dosis Aplicada</label>
+                                <input type="text" id="hl-dose" class="form-control" placeholder="Ej. 10 ml">
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label fw-bold" for="hl-route">Vía de Administración</label>
+                                <select id="hl-route" class="form-select">
+                                    <option value="Oral">Oral</option>
+                                    <option value="Inyectable">Inyectable</option>
+                                    <option value="Tópica">Tópica</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label fw-bold" for="hl-date">Fecha de Aplicación</label>
+                                <input type="date" id="hl-date" class="form-control" required>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label fw-bold" for="hl-next-date">Próxima Aplicación / Refuerzo</label>
+                                <input type="date" id="hl-next-date" class="form-control">
+                                <small class="text-muted">Se emitirá un aviso 3 días antes de esta fecha.</small>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label fw-bold" for="hl-responsible">Responsable de la Aplicación</label>
+                                <input type="text" id="hl-responsible" class="form-control" placeholder="Nombre del encargado o veterinario">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold" for="hl-notes">Observaciones o Recomendaciones</label>
+                                <textarea id="hl-notes" class="form-control" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success" onclick="saveHealthRecord()">Guardar Registro</button>
                 </div>
             </div>
         </div>
@@ -1456,6 +1582,7 @@
 
         let animals = [];
         let expenses = [];
+        let healthRecords = [];
         let sales = [];
         let losses = [];
 
@@ -1552,6 +1679,7 @@
             finca.expenses = expenses;
             finca.sales = sales;
             finca.losses = losses;
+            finca.healthRecords = healthRecords;
             try {
                 const { db, doc, setDoc } = window.fb;
                 await setDoc(doc(db, 'users', currentUser.uid, 'fincas', finca.id), {
@@ -1560,7 +1688,8 @@
                     animals: finca.animals,
                     expenses: finca.expenses,
                     sales: finca.sales,
-                    losses: finca.losses
+                    losses: finca.losses,
+                    healthRecords: finca.healthRecords
                 });
             } catch (err) {
                 console.error('Error guardando en Firestore:', err);
@@ -1731,6 +1860,7 @@
             expenses = finca.expenses || [];
             sales = finca.sales || [];
             losses = finca.losses || [];
+            healthRecords = finca.healthRecords || [];
 
             document.getElementById('sidebarFincaName').innerText = finca.name;
             document.getElementById('sidebarLogo').src = finca.logo || 'icon-192.png';
@@ -2046,15 +2176,17 @@
             const links = document.querySelectorAll('#sidebar .nav-link');
             if (tabId === 'dashboard') links[0].classList.add('active');
             if (tabId === 'animals') links[1].classList.add('active');
-            if (tabId === 'expenses') links[2].classList.add('active');
-            if (tabId === 'sales') links[3].classList.add('active');
-            if (tabId === 'ledger') links[4].classList.add('active');
-            if (tabId === 'reports') links[5].classList.add('active');
-            if (tabId === 'admin' && links[6]) links[6].classList.add('active');
+            if (tabId === 'health') links[2].classList.add('active');
+            if (tabId === 'expenses') links[3].classList.add('active');
+            if (tabId === 'sales') links[4].classList.add('active');
+            if (tabId === 'ledger') links[5].classList.add('active');
+            if (tabId === 'reports') links[6].classList.add('active');
+            if (tabId === 'admin' && links[7]) links[7].classList.add('active');
 
             const titles = {
                 'dashboard': 'Resumen General',
                 'animals': 'Control de Animales (Hato)',
+                'health': 'Control de Salud Animal',
                 'expenses': 'Registro de Consumibles y Gastos Operativos',
                 'sales': 'Ventas y Bajas de Animales',
                 'ledger': 'Asiento Contable (Libro Diario)',
@@ -2068,9 +2200,10 @@
                 document.getElementById('sidebar').classList.remove('show');
                 document.getElementById('sidebar-overlay').classList.remove('show');
             }
-            
+
             if(tabId === 'reports') renderReport();
             if(tabId === 'admin') { renderPendingUsers(); }
+            if(tabId === 'health') renderHealthTable();
             if(tabId === 'sales') { switchSalesSubTab('sales'); renderSalesTable(); renderLossesTable(); }
             if(tabId === 'ledger') renderAccountingLedger();
         }
@@ -2079,6 +2212,7 @@
         function updateAll() {
             renderAnimalsTable();
             renderExpensesTable();
+            renderHealthTable();
             updateDashboard();
             updateAppliesOptions();
             renderSalesTable();
@@ -2159,11 +2293,12 @@
 
             let sumWeight = 0, sumPricePaid = 0, sumTransport = 0, sumInitial = 0, sumExpenses = 0, sumGrandTotal = 0;
 
-            animals.filter(a => 
-                a.id.toString().toLowerCase().includes(search) || 
+            animals.filter(a =>
+                a.id.toString().toLowerCase().includes(search) ||
                 a.name.toLowerCase().includes(search) ||
                 a.breed.toLowerCase().includes(search) ||
-                a.origin.toLowerCase().includes(search)
+                a.origin.toLowerCase().includes(search) ||
+                (a.sex || '').toLowerCase().includes(search)
             ).forEach((a, index) => {
                 const paid = a.weight * a.priceKg;
                 const initialInv = paid + Number(a.transport);
@@ -2195,6 +2330,7 @@
                     <td>${a.date || '2026-07-15'}</td>
                     <td class="fw-bold text-success">${a.id}</td>
                     <td class="fw-semibold">${a.name}</td>
+                    <td>${a.sex || '-'}</td>
                     <td><span class="badge badge-breed">${a.breed}</span></td>
                     <td>${a.origin}</td>
                     <td class="fw-bold">${a.weight} kg</td>
@@ -2216,7 +2352,7 @@
             // Footer Totals
             document.getElementById('animals-tfoot').innerHTML = `
                 <tr>
-                    <td colspan="7">TOTALES DEL HATO</td>
+                    <td colspan="8">TOTALES DEL HATO</td>
                     <td>${sumWeight} kg</td>
                     <td>-</td>
                     <td>${formatCRC(sumPricePaid)}</td>
@@ -2332,6 +2468,7 @@
                 name: document.getElementById('an-name').value.trim(),
                 recordType: document.getElementById('an-record-type').value,
                 date: document.getElementById('an-date').value,
+                sex: document.getElementById('an-sex').value,
                 breed: document.getElementById('an-breed').value,
                 origin: document.getElementById('an-origin').value.trim(),
                 weight: parseFloat(document.getElementById('an-weight').value) || 0,
@@ -2340,8 +2477,8 @@
                 photo: finalPhoto
             };
 
-            if(!animalObj.id || !animalObj.name) {
-                alert("Por favor complete los campos obligatorios (ID y Nombre)");
+            if(!animalObj.id || !animalObj.name || !animalObj.sex) {
+                alert("Por favor complete los campos obligatorios (ID, Nombre y Sexo)");
                 return;
             }
 
@@ -2382,6 +2519,7 @@
             document.getElementById('an-name').value = a.name;
             document.getElementById('an-record-type').value = a.recordType || 'Compra';
             document.getElementById('an-date').value = a.date || "2026-07-15";
+            document.getElementById('an-sex').value = a.sex || '';
             document.getElementById('an-breed').value = a.breed || 'Cruce';
             document.getElementById('an-origin').value = a.origin;
             document.getElementById('an-weight').value = a.weight;
@@ -2817,6 +2955,163 @@
             if(confirm("¿Desea eliminar este registro de gasto?")) {
                 expenses.splice(index, 1);
                 saveData();
+            }
+        }
+
+        // ==========================================================
+        // MÓDULO: CONTROL DE SALUD ANIMAL
+        // ==========================================================
+        const HEALTH_ALERT_DAYS = 3;
+
+        function updateHealthAppliesOptions() {
+            const select = document.getElementById('hl-animal');
+            if (!select) return;
+            const current = select.value;
+            select.innerHTML = '<option value="">Seleccione un animal...</option>';
+            animals.forEach(a => {
+                select.innerHTML += `<option value="${a.id}">ID: ${a.id} - ${a.name}</option>`;
+            });
+            if (current) select.value = current;
+        }
+
+        // Días de diferencia entre hoy y una fecha (positivo = fecha futura)
+        function daysUntil(dateStr) {
+            if (!dateStr) return null;
+            const today = new Date(); today.setHours(0,0,0,0);
+            const target = new Date(dateStr + 'T00:00:00');
+            return Math.round((target - today) / 86400000);
+        }
+
+        function openHealthModal(isEdit = false) {
+            document.getElementById('healthForm').reset();
+            document.getElementById('hl-index').value = "";
+            document.getElementById('healthModalTitle').innerText = isEdit ? "Editar Aplicación Sanitaria" : "Registrar Aplicación Sanitaria";
+            updateHealthAppliesOptions();
+            if(!isEdit) document.getElementById('hl-date').value = new Date().toISOString().split('T')[0];
+            new bootstrap.Modal(document.getElementById('healthModal')).show();
+        }
+
+        function saveHealthRecord() {
+            const index = document.getElementById('hl-index').value;
+            const hlObj = {
+                animalId: document.getElementById('hl-animal').value,
+                type: document.getElementById('hl-type').value,
+                product: document.getElementById('hl-product').value.trim(),
+                dose: document.getElementById('hl-dose').value.trim(),
+                route: document.getElementById('hl-route').value,
+                date: document.getElementById('hl-date').value,
+                nextDate: document.getElementById('hl-next-date').value,
+                responsible: document.getElementById('hl-responsible').value.trim(),
+                notes: document.getElementById('hl-notes').value.trim()
+            };
+
+            if(!hlObj.animalId || !hlObj.date) {
+                alert("Por favor seleccione el animal y la fecha de aplicación.");
+                return;
+            }
+
+            if(index === "") {
+                healthRecords.push(hlObj);
+            } else {
+                healthRecords[index] = hlObj;
+            }
+
+            saveData();
+            bootstrap.Modal.getInstance(document.getElementById('healthModal')).hide();
+        }
+
+        function editHealthRecord(index) {
+            const h = healthRecords[index];
+            openHealthModal(true);
+
+            document.getElementById('hl-index').value = index;
+            document.getElementById('hl-animal').value = h.animalId;
+            document.getElementById('hl-type').value = h.type || 'Vacuna';
+            document.getElementById('hl-product').value = h.product || '';
+            document.getElementById('hl-dose').value = h.dose || '';
+            document.getElementById('hl-route').value = h.route || 'Oral';
+            document.getElementById('hl-date').value = h.date || '';
+            document.getElementById('hl-next-date').value = h.nextDate || '';
+            document.getElementById('hl-responsible').value = h.responsible || '';
+            document.getElementById('hl-notes').value = h.notes || '';
+        }
+
+        function deleteHealthRecord(index) {
+            if(confirm("¿Desea eliminar este registro de salud?")) {
+                healthRecords.splice(index, 1);
+                saveData();
+            }
+        }
+
+        function renderHealthTable() {
+            const tbody = document.getElementById('health-tbody');
+            if (!tbody) return;
+            const searchEl = document.getElementById('search-health');
+            const search = searchEl ? searchEl.value.toLowerCase() : '';
+            tbody.innerHTML = '';
+
+            const dueSoon = [];
+
+            healthRecords.forEach((h, index) => {
+                const animal = animals.find(a => a.id.toString() === h.animalId.toString());
+                const animalName = animal ? animal.name : '(animal eliminado)';
+
+                const haystack = `${h.animalId} ${animalName} ${h.type} ${h.product}`.toLowerCase();
+                if (search && !haystack.includes(search)) return;
+
+                const diff = daysUntil(h.nextDate);
+                let rowClass = '';
+                if (diff !== null) {
+                    if (diff < 0) { rowClass = 'table-danger'; dueSoon.push({h, animalName, diff}); }
+                    else if (diff <= HEALTH_ALERT_DAYS) { rowClass = 'table-warning'; dueSoon.push({h, animalName, diff}); }
+                }
+
+                const row = document.createElement('tr');
+                if (rowClass) row.classList.add(rowClass);
+                row.innerHTML = `
+                    <td class="fw-bold text-success">${h.animalId}</td>
+                    <td class="fw-semibold">${animalName}</td>
+                    <td><span class="badge bg-light text-dark border">${h.type}</span></td>
+                    <td>${h.product || '-'}</td>
+                    <td>${h.dose || '-'}</td>
+                    <td>${h.route || '-'}</td>
+                    <td>${h.date || '-'}</td>
+                    <td>${h.nextDate ? h.nextDate + (diff !== null && diff <= HEALTH_ALERT_DAYS ? ` <i class="fa-solid fa-bell text-danger ms-1" title="Refuerzo próximo"></i>` : '') : '-'}</td>
+                    <td>${h.responsible || '-'}</td>
+                    <td>${h.notes || '-'}</td>
+                    <td class="no-print text-center">
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editHealthRecord(${index})" aria-label="Editar registro de salud"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteHealthRecord(${index})" aria-label="Eliminar registro de salud"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Banner de avisos dentro de la pestaña
+            const banner = document.getElementById('health-alert-banner');
+            const bannerText = document.getElementById('health-alert-text');
+            if (banner && bannerText) {
+                if (dueSoon.length > 0) {
+                    const items = dueSoon
+                        .sort((a, b) => a.diff - b.diff)
+                        .map(d => `${d.animalName} (ID ${d.h.animalId}): ${d.h.type}${d.diff < 0 ? ' - VENCIDO hace ' + Math.abs(d.diff) + ' día(s)' : (d.diff === 0 ? ' - hoy' : ' - en ' + d.diff + ' día(s)')}`)
+                        .join(' · ');
+                    bannerText.innerText = `Refuerzos próximos o vencidos: ${items}`;
+                    banner.classList.remove('d-none');
+                } else {
+                    banner.classList.add('d-none');
+                }
+            }
+
+            // Badge en el menú lateral
+            const badge = document.getElementById('healthDueBadge');
+            if (badge) {
+                if (dueSoon.length > 0) {
+                    badge.innerText = dueSoon.length;
+                    badge.classList.remove('d-none');
+                } else {
+                    badge.classList.add('d-none');
+                }
             }
         }
 
