@@ -338,6 +338,13 @@
             color: white;
         }
 
+        /* Evita que los botones "Registrar..." se encojan dentro de su
+           contenedor flex y recorten el texto (overflow:hidden de .btn
+           anula el ancho mínimo automático en flexbox). */
+        .btn-primary-3r.text-nowrap {
+            flex-shrink: 0;
+        }
+
         /* ================= AUTENTICACIÓN (Login / Registro) ================= */
         #authScreen {
             min-height: 100vh;
