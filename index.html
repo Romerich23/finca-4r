@@ -345,6 +345,27 @@
             flex-shrink: 0;
         }
 
+        /* ================= INDICADOR DE CONEXIÓN / MODO SIN CONEXIÓN ================= */
+        #connectionPill {
+            position: fixed;
+            right: 12px;
+            bottom: 12px;
+            z-index: 1030;
+            white-space: nowrap;
+            border-radius: 50rem;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+            background-color: #ffffff;
+            border: 2px solid var(--primary-light);
+            color: var(--primary-color);
+            opacity: 0.9;
+        }
+        #connectionPill[data-state="syncing"] { border-color: #b8752f; color: #8a5420; opacity: 1; }
+        #connectionPill[data-state="offline"] { border-color: #b02a37; color: #b02a37; opacity: 1; }
+        #connectionPill[data-state="manual"]  { background-color: #fff3cd; border-color: #b8752f; color: #664d03; opacity: 1; }
+
         /* ================= AUTENTICACIÓN (Login / Registro) ================= */
         #authScreen {
             min-height: 100vh;
@@ -549,6 +570,11 @@
             <small class="text-white-50 d-block text-center"><i class="fa-solid fa-shield-cat me-1" aria-hidden="true"></i> SIGGA &copy; 2026</small>
         </footer>
     </nav>
+
+    <!-- INDICADOR DE CONEXIÓN + INTERRUPTOR DE MODO SIN CONEXIÓN -->
+    <button type="button" id="connectionPill" class="btn no-print d-none" data-state="online" onclick="toggleOfflineMode()" aria-live="polite">
+        <i id="connectionIcon" class="fa-solid fa-wifi" aria-hidden="true"></i><span id="connectionLabel" class="d-none"></span>
+    </button>
 
     <!-- MAIN CONTENT AREA -->
 
@@ -1655,23 +1681,130 @@
         // ==========================================================
         // FIRESTORE: LECTURA DE PERFIL Y FINCAS
         // ==========================================================
+        // ==========================================================
+        // MODO SIN CONEXIÓN: estado, interruptor y avisos
+        // - Los datos se guardan en el dispositivo (caché local de Firestore).
+        // - Lo que se modifique sin conexión se sube solo cuando vuelve Internet.
+        // ==========================================================
+        let manualOffline = false;
+        try { manualOffline = localStorage.getItem('sigga_modo_sin_conexion') === '1'; } catch (e) { /* noop */ }
+        let pendingSaves = 0;
+
+        function isOffline() {
+            return manualOffline || navigator.onLine === false;
+        }
+
+        function updateConnectionUI() {
+            const pill = document.getElementById('connectionPill');
+            if (!pill) return;
+            const icon = document.getElementById('connectionIcon');
+            const label = document.getElementById('connectionLabel');
+            const offlineNow = manualOffline || navigator.onLine === false;
+            let state, text, iconClass, title;
+
+            if (manualOffline) {
+                state = 'manual'; text = 'Modo sin conexión'; iconClass = 'fa-plane';
+                title = 'Modo sin conexión activado: trabajas con los datos guardados en este dispositivo. Toca para volver a conectar.';
+            } else if (navigator.onLine === false) {
+                state = 'offline'; text = 'Sin conexión'; iconClass = 'fa-wifi';
+                title = 'No hay Internet: puedes ver y modificar datos; se sincronizarán al volver la conexión. Toca para activar el modo sin conexión.';
+            } else if (pendingSaves > 0) {
+                state = 'syncing'; text = 'Sincronizando…'; iconClass = 'fa-rotate fa-spin';
+                title = 'Subiendo cambios a la nube. Toca para activar el modo sin conexión.';
+            } else {
+                state = 'online'; text = ''; iconClass = 'fa-wifi';
+                title = 'En línea y sincronizado. Toca para activar el modo sin conexión.';
+            }
+            if (offlineNow && pendingSaves > 0) text += ' · cambios pendientes';
+
+            pill.dataset.state = state;
+            pill.title = title;
+            pill.setAttribute('aria-label', (text || 'En línea') + '. ' + title);
+            icon.className = 'fa-solid ' + iconClass + (text ? ' me-1' : '');
+            label.textContent = text;
+            label.classList.toggle('d-none', !text);
+        }
+
+        function showConnectionPill(show) {
+            const pill = document.getElementById('connectionPill');
+            if (pill) pill.classList.toggle('d-none', !show);
+            if (show) updateConnectionUI();
+        }
+
+        // Cuenta un guardado como "pendiente" hasta que Firestore confirme que llegó a la nube
+        function markPending() {
+            pendingSaves++;
+            updateConnectionUI();
+            const done = () => { pendingSaves = Math.max(0, pendingSaves - 1); updateConnectionUI(); };
+            try {
+                const { db, waitForPendingWrites } = window.fb;
+                waitForPendingWrites(db).catch(() => {}).then(done);
+            } catch (e) { done(); }
+        }
+
+        async function toggleOfflineMode() {
+            const { db, disableNetwork, enableNetwork } = window.fb;
+            manualOffline = !manualOffline;
+            serverSlow = false;
+            try { localStorage.setItem('sigga_modo_sin_conexion', manualOffline ? '1' : '0'); } catch (e) { /* noop */ }
+            updateConnectionUI();
+            try {
+                if (manualOffline) await disableNetwork(db);
+                else await enableNetwork(db);
+            } catch (err) { console.error('Error cambiando el modo de conexión:', err); }
+            updateConnectionUI();
+        }
+
+        window.addEventListener('online', () => { serverSlow = false; updateConnectionUI(); });
+        window.addEventListener('offline', updateConnectionUI);
+
+        // Acciones que necesitan Internet sí o sí (cuentas, usuarios, fincas)
+        function requireOnline() {
+            if (isOffline()) {
+                alert('Esta acción necesita conexión a Internet. Desactiva el modo sin conexión o espera a tener señal.');
+                return false;
+            }
+            return true;
+        }
+
+        // Lee de la nube si hay conexión; si no hay (o tarda demasiado), usa lo guardado en el dispositivo
+        let serverSlow = false; // la nube no respondió a tiempo: las siguientes lecturas van directo a la caché
+        async function fsRead(serverFn, cacheFn) {
+            if (isOffline() || serverSlow) return cacheFn();
+            try {
+                return await Promise.race([
+                    serverFn(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000))
+                ]);
+            } catch (err) {
+                if (err && err.message === 'timeout') serverSlow = true;
+                try { return await cacheFn(); } catch (e2) { throw err; }
+            }
+        }
+
+        // ==========================================================
+        // FIRESTORE: LECTURA DE PERFIL Y FINCAS
+        // ==========================================================
         async function loadUserProfile(uid) {
-            const { db, doc, getDoc } = window.fb;
-            const snap = await getDoc(doc(db, 'users', uid));
+            const { db, doc, getDoc, getDocFromCache } = window.fb;
+            const ref = doc(db, 'users', uid);
+            const snap = await fsRead(() => getDoc(ref), () => getDocFromCache(ref));
             return snap.exists() ? { uid, ...snap.data() } : null;
         }
 
         async function loadUserFincas(uid) {
-            const { db, collection, getDocs } = window.fb;
-            const snap = await getDocs(collection(db, 'users', uid, 'fincas'));
+            const { db, collection, getDocs, getDocsFromCache } = window.fb;
+            const ref = collection(db, 'users', uid, 'fincas');
+            const snap = await fsRead(() => getDocs(ref), () => getDocsFromCache(ref));
             const fincas = [];
             snap.forEach(d => fincas.push({ id: d.id, ...d.data() }));
             return fincas;
         }
 
         async function fetchAllUsers() {
-            const { db, collection, getDocs } = window.fb;
-            const snap = await getDocs(collection(db, 'users'));
+            const { db, collection, getDocs, getDocsFromCache } = window.fb;
+            const usersRef = collection(db, 'users');
+            const snap = await fsRead(() => getDocs(usersRef), () => getDocsFromCache(usersRef));
             const users = [];
             snap.forEach(d => users.push({ uid: d.id, ...d.data() }));
             return users;
@@ -1687,9 +1820,13 @@
             finca.sales = sales;
             finca.losses = losses;
             finca.healthRecords = healthRecords;
+            const showSaveError = (err) => {
+                console.error('Error guardando en Firestore:', err);
+                alert('⚠️ No se pudo guardar en la nube.\n\nDetalle técnico:\n' + err.message + '\n\nTus cambios quedaron solo en esta sesión hasta que se resuelva.');
+            };
             try {
                 const { db, doc, setDoc } = window.fb;
-                await setDoc(doc(db, 'users', currentUser.uid, 'fincas', finca.id), {
+                const writePromise = setDoc(doc(db, 'users', currentUser.uid, 'fincas', finca.id), {
                     name: finca.name,
                     logo: finca.logo || '',
                     animals: finca.animals,
@@ -1698,9 +1835,16 @@
                     losses: finca.losses,
                     healthRecords: finca.healthRecords
                 });
+                markPending();
+                writePromise.catch(showSaveError);
+                // Con Internet espera la confirmación (máx. 5 s). Sin Internet el cambio queda guardado
+                // en el dispositivo y se sube solo cuando vuelva la conexión.
+                await Promise.race([
+                    writePromise.catch(() => {}),
+                    new Promise(resolve => setTimeout(resolve, isOffline() ? 0 : 5000))
+                ]);
             } catch (err) {
-                console.error('Error guardando en Firestore:', err);
-                alert('⚠️ No se pudo guardar en la nube.\n\nDetalle técnico:\n' + err.message + '\n\nTus cambios quedaron solo en esta sesión hasta que se resuelva.');
+                showSaveError(err);
             }
         }
 
@@ -1767,7 +1911,11 @@
             } catch (err) {
                 hideSyncOverlay();
                 console.error(err);
-                errorEl.innerText = 'Correo o contraseña incorrectos.';
+                if (err && err.code === 'auth/network-request-failed') {
+                    errorEl.innerText = 'Sin conexión: para iniciar sesión la primera vez necesitas Internet.';
+                } else {
+                    errorEl.innerText = 'Correo o contraseña incorrectos.';
+                }
             }
         }
 
@@ -1782,6 +1930,7 @@
         }
 
         async function attemptRegister() {
+            if (!requireOnline()) return;
             const name = document.getElementById('reg-name').value.trim();
             const email = document.getElementById('reg-email').value.trim();
             const password = document.getElementById('reg-password').value;
@@ -1831,6 +1980,7 @@
             currentFincaIndex = 0;
             document.getElementById('appContainer').classList.add('d-none');
             document.getElementById('authScreen').classList.remove('d-none');
+            showConnectionPill(false);
             document.getElementById('login-email').value = '';
             document.getElementById('login-password').value = '';
             showAuthView('login');
@@ -1846,6 +1996,8 @@
             selectFinca(0);
             if (currentUser.role === 'admin') renderPendingUsers();
             switchTab('dashboard');
+            showConnectionPill(true);
+            markPending(); // refleja cambios hechos sin conexión en sesiones anteriores
         }
 
         function populateFincaSwitcher() {
@@ -1935,6 +2087,7 @@
             const mode = document.getElementById('finca-mode').value;
             const name = document.getElementById('finca-name').value.trim();
             if (!name) { alert('Por favor ingrese el nombre de la finca.'); return; }
+            if (!requireOnline()) return;
 
             const { db, doc, setDoc } = window.fb;
             showSyncOverlay('Guardando finca...');
@@ -1947,13 +2100,14 @@
                     await setDoc(doc(db, 'users', currentUser.uid, 'fincas', finca.id), {
                         name: finca.name, logo: finca.logo || '',
                         animals: finca.animals || [], expenses: finca.expenses || [],
-                        sales: finca.sales || [], losses: finca.losses || []
+                        sales: finca.sales || [], losses: finca.losses || [],
+                        healthRecords: finca.healthRecords || []
                     });
                 } else {
                     const newFincaId = 'f_' + Date.now();
-                    const newFinca = { id: newFincaId, name, logo: fincaLogoBase64 || '', animals: [], expenses: [], sales: [], losses: [] };
+                    const newFinca = { id: newFincaId, name, logo: fincaLogoBase64 || '', animals: [], expenses: [], sales: [], losses: [], healthRecords: [] };
                     await setDoc(doc(db, 'users', currentUser.uid, 'fincas', newFincaId), {
-                        name: newFinca.name, logo: newFinca.logo, animals: [], expenses: [], sales: [], losses: []
+                        name: newFinca.name, logo: newFinca.logo, animals: [], expenses: [], sales: [], losses: [], healthRecords: []
                     });
                     currentFincas.push(newFinca);
                     currentFincaIndex = currentFincas.length - 1;
@@ -1969,6 +2123,7 @@
         }
 
         async function deleteCurrentFinca() {
+            if (!requireOnline()) return;
             if (currentFincas.length <= 1) {
                 alert('No se puede eliminar: debe existir al menos una finca en tu cuenta.');
                 return;
@@ -2034,6 +2189,7 @@
         }
 
         async function approvePendingUser(uid) {
+            if (!requireOnline()) return;
             showSyncOverlay('Aprobando usuario...');
             try {
                 const { db, doc, updateDoc, setDoc, getDoc } = window.fb;
@@ -2060,6 +2216,7 @@
         }
 
         async function rejectPendingUser(uid) {
+            if (!requireOnline()) return;
             if (!confirm('¿Desea rechazar y eliminar esta solicitud?')) return;
             try {
                 const { db, doc, deleteDoc } = window.fb;
@@ -2115,6 +2272,7 @@
         }
 
         async function saveUserEdit() {
+            if (!requireOnline()) return;
             const uid = document.getElementById('ue-index').value;
             const newName = document.getElementById('ue-name').value.trim();
             if (!newName) { alert('Por favor ingrese un nombre.'); return; }
@@ -2133,6 +2291,7 @@
         }
 
         async function toggleUserActive(uid, newActiveValue) {
+            if (!requireOnline()) return;
             try {
                 const { db, doc, updateDoc } = window.fb;
                 await updateDoc(doc(db, 'users', uid), { active: newActiveValue });
@@ -2143,6 +2302,7 @@
         }
 
         async function resetUserPassword(uid) {
+            if (!requireOnline()) return;
             const u = adminUsersCache.find(x => x.uid === uid);
             if (!u) return;
             if (!confirm(`¿Enviar un correo de restablecimiento de contraseña a ${u.email}?`)) return;
@@ -2156,6 +2316,7 @@
         }
 
         async function deleteUser(uid) {
+            if (!requireOnline()) return;
             const u = adminUsersCache.find(x => x.uid === uid);
             if (!u || u.role === 'admin') return;
             if (!confirm(`¿Desea eliminar permanentemente a "${u.name}" y todas sus fincas? Esta acción no se puede deshacer.\n\nNota: su acceso a la app queda bloqueado de inmediato. Solo la propia persona (o una función de servidor futura) puede borrar del todo su cuenta de acceso técnica.`)) return;
@@ -2270,6 +2431,7 @@
         }
 
         function updateExpensesChart(purchase, transport, food, health, salt, other) {
+            if (typeof Chart === 'undefined') return; // librería de gráficos aún no descargada (sin Internet)
             const ctx = document.getElementById('expensesChart').getContext('2d');
             if(expensesChart) expensesChart.destroy();
 
@@ -3276,6 +3438,31 @@
         // (ver el <script type="module"> al final del documento)
         window.startApp = async function() {
             showAuthView('login');
+            // Si ya había una sesión iniciada en este dispositivo, entra directo (funciona también sin Internet)
+            try {
+                showSyncOverlay('Abriendo tu sesión...');
+                const { auth, onAuthStateChanged, signOut } = window.fb;
+                const user = await new Promise(resolve => {
+                    const unsubscribe = onAuthStateChanged(auth, u => { unsubscribe(); resolve(u); });
+                });
+                if (!user) { hideSyncOverlay(); return; }
+
+                const profile = await loadUserProfile(user.uid);
+                if (!profile || profile.approved === false || profile.active === false) {
+                    await signOut(auth);
+                    hideSyncOverlay();
+                    return;
+                }
+                currentUser = profile;
+                currentFincas = await loadUserFincas(profile.uid);
+                currentFincaIndex = 0;
+                hideSyncOverlay();
+                enterApp();
+            } catch (err) {
+                // Si no se pudo restaurar (por ejemplo, primera vez sin Internet) se queda en la pantalla de inicio de sesión
+                console.error('No se pudo restaurar la sesión:', err);
+                hideSyncOverlay();
+            }
         };
 
         // ================= REGISTRO DEL SERVICE WORKER (PWA) =================
@@ -3301,10 +3488,12 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
         import {
             getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-            signOut, sendPasswordResetEmail
+            signOut, sendPasswordResetEmail, onAuthStateChanged
         } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
         import {
-            getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection
+            getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+            doc, getDoc, getDocFromCache, getDocs, getDocsFromCache, setDoc, updateDoc, deleteDoc, collection,
+            disableNetwork, enableNetwork, waitForPendingWrites
         } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
         // Configuración pública de tu proyecto SIGGA en Firebase.
@@ -3321,14 +3510,31 @@
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const db = getFirestore(app);
+
+        // Caché local persistente: guarda los datos en el dispositivo para poder verlos y
+        // modificarlos sin Internet; los cambios se suben solos al volver la conexión.
+        let db;
+        try {
+            db = initializeFirestore(app, {
+                localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+            });
+        } catch (e) {
+            console.warn('Caché local no disponible, se usa el modo normal:', e);
+            db = getFirestore(app);
+        }
+
+        // Si el usuario dejó activado el "Modo sin conexión", se respeta desde el arranque
+        try {
+            if (localStorage.getItem('sigga_modo_sin_conexion') === '1') disableNetwork(db);
+        } catch (e) { /* noop */ }
 
         // Exponemos todo lo necesario al script principal (que es un <script> clásico,
         // sin acceso directo a estos imports de módulo)
         window.fb = {
             auth, db,
-            createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail,
-            doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection
+            createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, onAuthStateChanged,
+            doc, getDoc, getDocFromCache, getDocs, getDocsFromCache, setDoc, updateDoc, deleteDoc, collection,
+            disableNetwork, enableNetwork, waitForPendingWrites
         };
 
         // Ya con Firebase listo, arrancamos la app (definida en el <script> principal)
